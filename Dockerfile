@@ -10,4 +10,5 @@ COPY --from=build /src/target/starter-service.jar ./app.jar
 ENV SERVER_ADDRESS=0.0.0.0
 USER 10001:10001
 EXPOSE 8080
+
 ENTRYPOINT ["java", "-jar", "app.jar"]
