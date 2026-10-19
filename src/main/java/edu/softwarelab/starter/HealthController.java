@@ -9,6 +9,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class HealthController {
     @GetMapping(value = "/health", produces = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, String> health() {
-        return Map.of("status", "okeeeeeeeeee");
+        return Map.of("status", "ok nist");
     }
 }
