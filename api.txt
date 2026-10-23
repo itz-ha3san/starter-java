@@ -1,0 +1,100 @@
+S1:
+    /api/v1/auth/transaction
+    POST:
+        request:
+            source_number
+            amount
+            type
+            dest_number
+        response:
+            src_account_id
+            dest_account_id
+            src_allowed
+            dest_allowed
+            is_internal
+    PUT:
+    request:
+        src_account_id
+        amount
+        idempotency_key
+    response:
+        200 if OK
+        400 if not
+    
+
+S2:
+    /api/v1/ldg/hold
+    request:
+        src_account_id
+        amount
+        transaction_id
+    response:
+        201 if created
+        400 if not + reason in body
+    
+    /api/v1/ldg/internal_transfer
+    request:
+        src_account_id
+        amount
+        dest_account_id
+        transaction_id
+    response:
+        200 if OK
+        400 if not + reason in body
+
+    /api/v1/ldg/capture
+    request:
+        transaction_id
+    response:
+        200 if OK
+        400 if not
+    
+    /api/v1/ldg/release
+    request:
+        transaction_id
+    response:
+        200 if OK
+        400 if not
+    
+    /api/v1/ldg/reversal
+    request:
+        transaction_id
+    response:
+        200 if OK
+        400 if not
+    
+    /api/v1/ldg/inquiry
+    request:
+        transaction_id
+    response:
+        200 if OK
+        400 if not
+
+
+S4:
+    /api/v1/rsk/check_risk
+    request:
+        src_account_id
+        dest_account_id
+        transaction_id
+        amount
+        aditional_data
+    response:
+        state
+
+S5:
+    /api/v1/stl/external_transfer
+    request:
+        amount
+        dest_account_id
+        transaction_id
+    response:
+        200 if OK
+        400 if not + reason in body
+    
+    /api/v1/ldg/inquiry
+    request:
+        transaction_id
+    response:
+        200 if OK
+        400 if not
