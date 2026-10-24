@@ -9,7 +9,7 @@ No database, authentication, or external service is required.
 - JDK 17 and Maven 3.9.x. Install both; this repository does not include Maven Wrapper.
 - Git to clone and push the repository.
 - Internet access for the first dependency download.
-- Docker is optional for running this service; use it only if you choose the Docker route below.
+- Docker and Docker Compose for running with a database.
 
 ## API contract
 
@@ -86,6 +86,62 @@ The container listens on all container interfaces; the published port is restric
 localhost on your machine. Stop the foreground container with `Ctrl+C`.
 The Docker image is for a teaching starter; registry tags receive updates and are not digest-pinned.
 
+## Run with Docker Compose (includes PostgreSQL)
+
+This starts the application alongside a PostgreSQL 16 database in a single command.
+The database data is persisted in a named volume so it survives container restarts.
+
+```bash
+docker compose up -d
+```
+
+To start fresh (recreate containers and keep the database volume):
+
+```bash
+docker compose up -d --build
+```
+
+To stop and remove the containers (data volume is kept):
+
+```bash
+docker compose down
+```
+
+To stop the containers without removing them:
+
+```bash
+docker compose stop
+```
+
+To view logs:
+
+```bash
+docker compose logs -f app
+```
+
+After startup, check the service:
+
+```bash
+curl -i http://127.0.0.1:8080/health
+```
+
+### Configuration via environment variables
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DB_HOST` | `db` (compose) / `localhost` (standalone) | Database host |
+| `DB_PORT` | `5432` | Database port |
+| `DB_NAME` | `starterdb` | Database name |
+| `DB_USER` | `postgres` | Database user |
+| `DB_PASSWORD` | `postgres` | Database password |
+| `APP_PORT` | `8080` | Host port for the application |
+
+Example override:
+
+```bash
+DB_PASSWORD=secret docker compose up -d
+```
+
 ## Port conflicts
 
 Run only one starter on port 8080 at a time. Stop the previous server first.
@@ -101,7 +157,9 @@ mvn spring-boot:run "-Dspring-boot.run.arguments=--server.port=8081"
 ## Files to know
 
 - `src/main/java/edu/softwarelab/starter/HealthController.java`: health endpoint implementation.
-- `Dockerfile`: optional container build and startup.
+- `Dockerfile`: container build and startup.
+- `docker-compose.yml`: application + PostgreSQL database orchestration.
+- `src/main/resources/application.properties`: application configuration including database settings.
 - `.gitignore`: excludes generated files and local settings.
 - `scripts/verify_health.py`: optional black-box API verification.
 
@@ -137,6 +195,8 @@ After publishing, the repository can optionally be marked as a template in GitHu
 - **404 on `/`:** expected; request `/health` instead.
 - **Dependency download failed:** check network/proxy access to the package registry.
 - **Command not found:** install the SDK/tool listed above and reopen the terminal.
+- **Database not ready:** wait a few seconds for the healthcheck to pass before the app starts.
+- **App fails to start:** check `docker compose logs app` for connection errors.
 
 ## Official reference
 
