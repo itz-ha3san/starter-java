@@ -36,5 +36,14 @@ services:
     ports:
       - "${APP_PORT:-8080}:8080"
 
+  frontend:
+    build: ./frontend
+    container_name: starter-frontend
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+
 volumes:
   postgres_data:
