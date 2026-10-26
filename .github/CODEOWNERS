@@ -1,0 +1,18 @@
+# Each rule has at least two collaborators with write access.
+# Last matching rule wins; do not remove the second owner from overrides.
+* @itz-ha3san @erfan8566 @parsa-mhr
+
+# Backend source and tests
+/src/ @itz-ha3san @erfan8566
+
+# Database migrations (more specific than /src/)
+/src/main/resources/db/migration/ @itz-ha3san @parsa-mhr
+/migrations/ @itz-ha3san @parsa-mhr
+
+# Frontend and documentation
+/frontend/ @erfan8566 @parsa-mhr
+/docs/ @itz-ha3san @parsa-mhr
+
+# Shared contracts, API checks and governance
+/api-tests/ @itz-ha3san @erfan8566 @parsa-mhr
+/.github/ @itz-ha3san @erfan8566 @parsa-mhr
