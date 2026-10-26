@@ -1,11 +1,33 @@
-# Local settings and credentials
+# Local settings and credentials (at any depth)
 .env
 .env.*
 !.env.example
+!.env.*.example
+*.pem
+*.key
+
+# IDE and operating-system metadata
 .idea/
 .vscode/
 .DS_Store
 Thumbs.db
 *.log
+
+# Java / Maven / Gradle output
 target/
+build/
+.gradle/
 *.class
+
+# Frontend dependencies, generated output and caches
+node_modules/
+dist/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Local test reports and database storage
+playwright-report/
+test-results/
+pgdata/
+postgres-data/
