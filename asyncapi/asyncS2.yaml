@@ -1,11 +1,13 @@
 asyncapi: 3.0.0
 info:
-  title: LabBank S3 ↔ S2 — typed ledger replies — PROPOSED
-  version: 0.4.0
-  description: 'S3 perspective. Breaking proposed wire v3: six typed replies, explicit AsyncAPI request/reply mapping,
-    and operation_id idempotency. Baseline checked against local api.txt. Provider Kafka support, successful response
-    fields, inquiry state model, deployment and security require S2/technical approval. This is a contract proposal,
-    not a claim of implemented S2 behavior.'
+  title: LabBank S3 ↔ S2 — typed ledger replies
+  version: 1.0.0
+  description: >-
+    S3 perspective. Final v1.0: six typed replies, explicit AsyncAPI
+    request/reply mapping, and operation_id idempotency. Baseline checked
+    against local api.txt. Professor-approved Kafka-over-REST substitution is
+    documented in ADR-0001. S2 Kafka support, successful response fields,
+    inquiry state model, deployment and security require S2 agreement.
 defaultContentType: application/json
 servers:
   local:
