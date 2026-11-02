@@ -1,16 +1,14 @@
 asyncapi: 3.0.0
 info:
-  title: LabBank S3 ↔ S1 — account-number authorization check
-  version: 1.0.0
-  description: >-
-    Standalone AsyncAPI 3 contract, S3 perspective. Final v1.0. S3 sends
-    source/destination account numbers and a delegated authentication token in
-    Kafka record headers. S1 returns canonical account IDs, account
-    eligibility, source-account transfer limit and authoritative is_internal.
-    No IBAN or operation-type discriminator is exchanged. This check contains
-    no transfer amount and therefore does not authorize a specific amount or
-    consume a daily limit. Professor-approved Kafka-over-REST substitution is
-    documented in ADR-0001.
+  title: LabBank S3 ↔ S1 — account-number authorization check — PROPOSED
+  version: 0.4.0
+  description: Standalone AsyncAPI 3 contract, S3 perspective. S3 sends source/destination account NUMBERS
+    and a delegated authentication token in Kafka record headers. S1 returns canonical account IDs, account
+    eligibility, source-account transfer limit and authoritative is_internal. No IBAN or operation-type discriminator
+    is exchanged. This check contains no transfer amount and therefore does not authorize a specific amount
+    or consume a daily limit. Revised v2 is a breaking, unapproved draft; retain these v2 topic addresses only
+    if the previous v2 draft has not been deployed, otherwise negotiate new versioned topics. Kafka deployment,
+    token delegation policy and limit semantics require agreement with S1.
 defaultContentType: application/json
 servers:
   local:

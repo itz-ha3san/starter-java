@@ -1,15 +1,11 @@
 asyncapi: 3.0.0
 info:
-  title: LabBank S3 ↔ S5 — IBAN destination and typed replies
-  version: 1.0.0
-  description: >-
-    S3 perspective. Final v1.0 contract for the Session 04 ring Provider side.
-    S3 (Payment Orchestration) produces external-transfer commands and
-    inquiries; S5 (Clearing & Settlement Gateway) produces typed replies.
-    Destination account number from api.txt is replaced by dest_iban per
-    GEN-13. Transfer and inquiry have distinct reply types and explicit reply
-    mappings. Professor-approved Kafka-over-REST substitution is documented in
-    ADR-0001. This is the contract S3 implements as Provider for the ring.
+  title: LabBank S3 ↔ S5 — IBAN destination and typed replies — PROPOSED
+  version: 0.4.0
+  description: 'S3 perspective. Proposed breaking wire v3. Destination account number replaced by dest_iban; transfer
+    and inquiry have distinct reply types and explicit reply mappings. Baseline: S5 section of api.txt plus user-requested
+    IBAN correction. api.txt does not define success response bodies: snapshot fields, statuses and S5 reference
+    semantics below require provider agreement. This file does not prove S5 Kafka implementation.'
 defaultContentType: application/json
 servers:
   local:
