@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    participant C as S3 Payment (Consumer)
+    participant K as Kafka Broker
+    participant P as S4 Risk (Provider)
+
+    Note over C: POST /api/v1/transfers received<br/>transfer saved in DB with status=PENDING
+
+    C->>K: Produce AssessRisk command<br/>topic: lab.s3.s4.command.risk.assess.v1<br/>key: transaction_id
+    K-->>C: Broker ACK (offset committed)
+    Note over C: transfer.status to RISK_CHECKING
+
+    alt success - S4 decision APPROVED
+        K-->>C: Consume AssessmentResult<br/>outcome: APPLIED, decision: APPROVED
+        Note over C: transfer.status to HOLDING<br/>S3 starts next step (HoldFunds to S2)
+    else rejected - S4 decision REJECTED
+        K-->>C: Consume AssessmentResult<br/>outcome: APPLIED, decision: REJECTED
+        Note over C: transfer.status to RISK_REJECTED<br/>transfer FAILED, no money moved
+    else manual-review - S4 decision MANUAL_REVIEW
+        K-->>C: Consume AssessmentResult<br/>outcome: APPLIED, decision: MANUAL_REVIEW
+        Note over C: transfer.status to RISK_MANUAL_REVIEW<br/>transfer pending human review
+    else validation-error - S4 rejects invalid payload
+        K-->>C: Consume AssessmentResult<br/>outcome: REJECTED, error.code: VALIDATION_ERROR
+        Note over C: transfer.status to FAILED
+    else no response - S4 does not answer / 5xx / timeout
+        Note over C: timeout (10s) - no message from S4
+        Note over C: transfer.status to RISK_MANUAL_REVIEW<br/>safe timeout, no debit
+    end
