@@ -1,0 +1,763 @@
+asyncapi: 3.0.0
+info:
+  title: LabBank S3 ↔ S5 — IBAN destination and typed replies
+  version: 1.0.0
+  description: >-
+    S3 perspective. Final v1.0 contract for the Session 04 ring Provider side.
+    S3 (Payment Orchestration) produces external-transfer commands and
+    inquiries; S5 (Clearing & Settlement Gateway) produces typed replies.
+    Destination account number from api.txt is replaced by dest_iban per
+    GEN-13. Transfer and inquiry have distinct reply types and explicit reply
+    mappings. Professor-approved Kafka-over-REST substitution is documented in
+    ADR-0001. This is the contract S3 implements as Provider for the ring.
+defaultContentType: application/json
+servers:
+  local:
+    host: localhost:9092
+    protocol: kafka
+    description: Local-development example only. Production addresses and SASL/TLS policy require agreement.
+channels:
+  sendExecuteExternalTransfer:
+    address: lab.s3.s5.command.transfer.external.v3
+    messages:
+      ExecuteExternalTransfer:
+        $ref: '#/components/messages/ExecuteExternalTransfer'
+    description: S3 produces; S5 consumes. UTF-8 record key=payload.transaction_id; validate equality. Ordering
+      is per topic partition, not across transfer and inquiry topics.
+  sendInquireExternalTransfer:
+    address: lab.s3.s5.command.transfer.inquire.v3
+    messages:
+      InquireExternalTransfer:
+        $ref: '#/components/messages/InquireExternalTransfer'
+    description: S3 produces; S5 consumes. UTF-8 record key=payload.transaction_id; validate equality. Ordering
+      is per topic partition, not across transfer and inquiry topics.
+  receiveS5Result:
+    address: lab.s5.s3.event.operation-result.v3
+    messages:
+      ExecuteExternalTransferResult:
+        $ref: '#/components/messages/ExecuteExternalTransferResult'
+      InquireExternalTransferResult:
+        $ref: '#/components/messages/InquireExternalTransferResult'
+    description: S5 produces; S3 consumes. Shared topic with TWO distinct typed reply schemas. UTF-8 key=transaction_id.
+      operation.reply.messages defines which reply belongs to each command. Broker ACK is not an application result.
+operations:
+  sendExecuteExternalTransfer:
+    action: send
+    channel:
+      $ref: '#/channels/sendExecuteExternalTransfer'
+    messages:
+    - $ref: '#/channels/sendExecuteExternalTransfer/messages/ExecuteExternalTransfer'
+    reply:
+      channel:
+        $ref: '#/channels/receiveS5Result'
+      messages:
+      - $ref: '#/channels/receiveS5Result/messages/ExecuteExternalTransferResult'
+    summary: ExecuteExternalTransfer → ExecuteExternalTransferResult
+  sendInquireExternalTransfer:
+    action: send
+    channel:
+      $ref: '#/channels/sendInquireExternalTransfer'
+    messages:
+    - $ref: '#/channels/sendInquireExternalTransfer/messages/InquireExternalTransfer'
+    reply:
+      channel:
+        $ref: '#/channels/receiveS5Result'
+      messages:
+      - $ref: '#/channels/receiveS5Result/messages/InquireExternalTransferResult'
+    summary: InquireExternalTransfer → InquireExternalTransferResult
+  receiveS5Result:
+    action: receive
+    channel:
+      $ref: '#/channels/receiveS5Result'
+    messages:
+    - $ref: '#/channels/receiveS5Result/messages/ExecuteExternalTransferResult'
+    - $ref: '#/channels/receiveS5Result/messages/InquireExternalTransferResult'
+components:
+  messages:
+    ExecuteExternalTransfer:
+      name: ExecuteExternalTransfer
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/ExecuteExternalTransfer'
+      examples:
+      - name: synthetic-command
+        payload:
+          message_id: 94136c46-c6f0-4538-9f19-9d57b0b5feed
+          schema_version: '3.0'
+          transaction_id: 2c4b5314-a624-4a95-a103-b12362e74073
+          correlation_id: 28759054-eb04-42c9-84ba-1d9d78872837
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S3-PAY
+          message_type: ExecuteExternalTransfer.v3
+          operation_id: 2450201b-3099-4ad9-80a7-aa0decae8cb4
+          data:
+            dest_iban: IR430120000000000000000001
+            amount: 2500000
+            currency: IRR
+    ExecuteExternalTransferResult:
+      name: ExecuteExternalTransferResult
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/ExecuteExternalTransferResult'
+      examples:
+      - name: synthetic-success
+        payload:
+          message_id: 21d29d58-73ba-4fbe-bb6d-17ed19565c71
+          schema_version: '3.0'
+          transaction_id: 2c4b5314-a624-4a95-a103-b12362e74073
+          correlation_id: 28759054-eb04-42c9-84ba-1d9d78872837
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S5-STL
+          message_type: ExecuteExternalTransferResult.v3
+          operation_id: 2450201b-3099-4ad9-80a7-aa0decae8cb4
+          data:
+            dest_iban: IR430120000000000000000001
+            amount: 2500000
+            currency: IRR
+            external_reference: S5-DEMO-REFERENCE-001
+            status: ACCEPTED
+            updated_at: '2026-01-01T12:00:00Z'
+          causation_id: 94136c46-c6f0-4538-9f19-9d57b0b5feed
+          outcome: APPLIED
+      - name: synthetic-rejection
+        payload:
+          message_id: 9582fd1f-904a-4aaa-92e2-b3f114f66518
+          schema_version: '3.0'
+          transaction_id: 2c4b5314-a624-4a95-a103-b12362e74073
+          correlation_id: 28759054-eb04-42c9-84ba-1d9d78872837
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S5-STL
+          message_type: ExecuteExternalTransferResult.v3
+          operation_id: 2450201b-3099-4ad9-80a7-aa0decae8cb4
+          causation_id: 94136c46-c6f0-4538-9f19-9d57b0b5feed
+          outcome: REJECTED
+          error:
+            code: VALIDATION_ERROR
+            retryable: false
+            public_message: Synthetic example only.
+            problem:
+              type: https://errors.labbank.example/contract-example
+              title: Rejected command
+              status: 400
+              code: VALIDATION_ERROR
+              detail: No real transfer is represented.
+              correlation_id: 28759054-eb04-42c9-84ba-1d9d78872837
+    InquireExternalTransfer:
+      name: InquireExternalTransfer
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/InquireExternalTransfer'
+      examples:
+      - name: synthetic-command
+        payload:
+          message_id: 6421301a-cc02-463b-85bb-b41d405ca556
+          schema_version: '3.0'
+          transaction_id: 2c4b5314-a624-4a95-a103-b12362e74073
+          correlation_id: 28759054-eb04-42c9-84ba-1d9d78872837
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S3-PAY
+          message_type: InquireExternalTransfer.v3
+          operation_id: 526135c2-9ba0-443d-add2-bf4e929318e3
+          data: {}
+    InquireExternalTransferResult:
+      name: InquireExternalTransferResult
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/InquireExternalTransferResult'
+      examples:
+      - name: synthetic-success
+        payload:
+          message_id: 3f58dd8d-2318-4f10-a096-6cd2f28da1b0
+          schema_version: '3.0'
+          transaction_id: 2c4b5314-a624-4a95-a103-b12362e74073
+          correlation_id: 28759054-eb04-42c9-84ba-1d9d78872837
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S5-STL
+          message_type: InquireExternalTransferResult.v3
+          operation_id: 526135c2-9ba0-443d-add2-bf4e929318e3
+          data:
+            dest_iban: IR430120000000000000000001
+            amount: 2500000
+            currency: IRR
+            external_reference: S5-DEMO-REFERENCE-001
+            status: SETTLED
+            updated_at: '2026-01-01T12:00:00Z'
+          causation_id: 6421301a-cc02-463b-85bb-b41d405ca556
+          outcome: APPLIED
+      - name: synthetic-rejection
+        payload:
+          message_id: d4d930de-8143-42f7-b98e-b0da1c638a63
+          schema_version: '3.0'
+          transaction_id: 2c4b5314-a624-4a95-a103-b12362e74073
+          correlation_id: 28759054-eb04-42c9-84ba-1d9d78872837
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S5-STL
+          message_type: InquireExternalTransferResult.v3
+          operation_id: 526135c2-9ba0-443d-add2-bf4e929318e3
+          causation_id: 6421301a-cc02-463b-85bb-b41d405ca556
+          outcome: REJECTED
+          error:
+            code: NOT_FOUND
+            retryable: false
+            public_message: Synthetic example only.
+            problem:
+              type: https://errors.labbank.example/contract-example
+              title: Rejected command
+              status: 404
+              code: NOT_FOUND
+              detail: No real transfer is represented.
+              correlation_id: 28759054-eb04-42c9-84ba-1d9d78872837
+  schemas:
+    IranianIBAN:
+      type: string
+      pattern: ^IR[0-9]{24}$
+      minLength: 26
+      maxLength: 26
+      description: 'Canonical Iranian destination IBAN: uppercase IR followed by 24 ASCII digits, 26 characters
+        total, no spaces. Preserve leading zeroes. Regex validates shape ONLY: runtime must validate ISO 13616 mod-97
+        checksum and reject LabBank bank code 099 for this external-transfer route (bank-code substring at zero-based
+        indices 4:7, per GEN-13). Never derive an account ID by blindly slicing this IBAN.'
+    OperationError:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          minLength: 1
+        retryable:
+          type: boolean
+        public_message:
+          type: string
+          minLength: 1
+        problem:
+          $ref: '#/components/schemas/Problem'
+      required:
+      - code
+      - retryable
+      - public_message
+      - problem
+      description: Application handling error, not a Kafka broker status. All fields required. code must equal problem.code;
+        problem.correlation_id must equal envelope.correlation_id (runtime validation). retryable does not imply
+        safe resubmission under a new operation_id.
+    Problem:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        code:
+          type: string
+          minLength: 1
+          description: 'Stable machine-readable code. Base examples: VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN,
+            NOT_FOUND, CONFLICT, IDEMPOTENCY_KEY_REUSED, SERVICE_UNAVAILABLE, UPSTREAM_TIMEOUT. Service-specific
+            codes are permitted.'
+        detail:
+          type: string
+        correlation_id:
+          type: string
+          format: uuid
+      required:
+      - code
+      - correlation_id
+      - detail
+      - status
+      - title
+      - type
+    ExternalTransferSnapshot:
+      type: object
+      additionalProperties: false
+      properties:
+        dest_iban:
+          $ref: '#/components/schemas/IranianIBAN'
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 9223372036854775807
+          description: Positive integer Iranian rials. Do not parse through floating-point types.
+        currency:
+          type: string
+          const: IRR
+        external_reference:
+          type: string
+          minLength: 1
+          description: Proposed stable S5-owned tracking reference, allocated atomically when S5 durably accepts
+            the transfer. Stable across queries/retries. Not necessarily an interbank settlement identifier; not
+            Kafka offset. Query input remains transaction_id.
+        status:
+          type: string
+          enum:
+          - ACCEPTED
+          - PROCESSING
+          - SETTLED
+          - FAILED
+          - UNKNOWN
+          description: 'ACCEPTED: durably accepted by S5, not settled. PROCESSING: in progress, not settled. SETTLED:
+            S5 has definitive network settlement confirmation. FAILED: authoritative terminal failure with no settlement
+            and no outstanding execution that may settle later. UNKNOWN: current settlement truth is uncertain;
+            not permission to release/reverse/resubmit. Post-settlement returns/corrections require a separately
+            agreed contract.'
+        updated_at:
+          type: string
+          format: date-time
+          pattern: Z$
+          description: UTC time at which S5 recorded this snapshot state. Not query creation time, not a total ordering
+            guarantee. S3 must reject invalid transitions and reconcile uncertain/out-of-order observations.
+      required:
+      - dest_iban
+      - amount
+      - currency
+      - external_reference
+      - status
+      - updated_at
+      description: Proposed success response body, NOT specified in api.txt. Destination/amount/currency are immutable
+        accepted business inputs and must match the original command (runtime equality checks). Echoing an IBAN
+        does not verify beneficiary ownership or credit. Snapshot and reference require S5 approval.
+    ExternalTransferReceiptData:
+      allOf:
+      - $ref: '#/components/schemas/ExternalTransferSnapshot'
+      - type: object
+        properties:
+          status:
+            enum:
+            - ACCEPTED
+            - PROCESSING
+            - SETTLED
+      description: Receipt of durable acceptance. May already be processing/settled if S5 knows this definitively.
+        Before-acceptance rejection uses outcome REJECTED with error; ambiguous submission uses outcome UNKNOWN
+        with error, not a fabricated success receipt.
+    ExternalTransferInquiryData:
+      $ref: '#/components/schemas/ExternalTransferSnapshot'
+    ExecuteExternalTransfer:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: S3-assigned banking transfer UUID persisted before dispatch, NOT Kafka-generated. Constant
+            across execution, inquiry and results.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S3-PAY
+        message_type:
+          type: string
+          const: ExecuteExternalTransfer.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: S3-assigned logical command UUID and internal idempotency key. Same command retry retains
+            this UUID and business inputs. Each fresh inquiry uses a new UUID; it queries by transaction_id, not
+            by this query operation_id.
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            dest_iban:
+              $ref: '#/components/schemas/IranianIBAN'
+            amount:
+              type: integer
+              format: int64
+              minimum: 1
+              maximum: 9223372036854775807
+              description: Positive integer Iranian rials. Do not parse through floating-point types.
+            currency:
+              type: string
+              const: IRR
+              description: ISO 4217 currency; all amounts in this draft are Iranian rials.
+          required:
+          - dest_iban
+          - amount
+          - currency
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - data
+      description: Submit one external transfer. dest_iban replaces the old destination account-number field; no
+        source IBAN is invented. transaction_id is in the envelope. Successful durable acceptance is not necessarily
+        settlement.
+      x-rest-mapping:
+        path: /api/v1/stl/external_transfer
+        change: dest_account_id replaced by data.dest_iban per user clarification; amount remains in data and transaction_id
+          in envelope. currency=IRR carries GEN-03. New response body requires S5 approval.
+    ExecuteExternalTransferResult:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: S3-assigned banking transfer UUID persisted before dispatch, NOT Kafka-generated. Constant
+            across execution, inquiry and results.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+          description: message_id of the command that triggered this result. operation_id remains the identity of
+            the logical operation across retries.
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S5-STL
+        message_type:
+          type: string
+          const: ExecuteExternalTransferResult.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: Echo the triggering command operation_id unchanged.
+        outcome:
+          type: string
+          enum:
+          - APPLIED
+          - REJECTED
+          - UNKNOWN
+          - PENDING
+          description: Outcome of handling this command, NOT external settlement status. APPLIED means durable acceptance
+            for execution, or completed lookup for inquiry; inspect data.status separately.
+        data:
+          $ref: '#/components/schemas/ExternalTransferReceiptData'
+        error:
+          $ref: '#/components/schemas/OperationError'
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - causation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - outcome
+      allOf:
+      - if:
+          properties:
+            outcome:
+              const: APPLIED
+          required:
+          - outcome
+        then:
+          required:
+          - data
+          not:
+            required:
+            - error
+      - if:
+          properties:
+            outcome:
+              enum:
+              - REJECTED
+              - UNKNOWN
+          required:
+          - outcome
+        then:
+          required:
+          - error
+          not:
+            required:
+            - data
+      - if:
+          properties:
+            outcome:
+              const: PENDING
+          required:
+          - outcome
+        then:
+          not:
+            anyOf:
+            - required:
+              - data
+            - required:
+              - error
+      description: Dedicated reply to ExecuteExternalTransfer. S2/S1 result types cannot satisfy this schema. Echo
+        transaction_id, correlation_id and operation_id; causation_id references triggering command message_id.
+        All cross-message equality and expected-operation checks require runtime validation.
+    InquireExternalTransfer:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: S3-assigned banking transfer UUID persisted before dispatch, NOT Kafka-generated. Constant
+            across execution, inquiry and results.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S3-PAY
+        message_type:
+          type: string
+          const: InquireExternalTransfer.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: S3-assigned logical command UUID and internal idempotency key. Same command retry retains
+            this UUID and business inputs. Each fresh inquiry uses a new UUID; it queries by transaction_id, not
+            by this query operation_id.
+        data:
+          type: object
+          additionalProperties: false
+          properties: {}
+          description: 'Intentionally data: {}. Complete query input is envelope.transaction_id, matching api.txt.
+            Never resubmit a transfer as a way to inquire.'
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - data
+      description: Read authoritative S5 snapshot for transaction_id. New deliberate poll uses a new operation_id;
+        retry of that poll retains it.
+      x-rest-mapping:
+        path-as-written-in-api-txt: /api/v1/ldg/inquiry
+        note: The ldg prefix in the S5 section is suspicious; the actual S5 HTTP route requires provider confirmation.
+          No replacement HTTP path is invented; Kafka inquiry topic is explicit.
+    InquireExternalTransferResult:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: S3-assigned banking transfer UUID persisted before dispatch, NOT Kafka-generated. Constant
+            across execution, inquiry and results.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+          description: message_id of the command that triggered this result. operation_id remains the identity of
+            the logical operation across retries.
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S5-STL
+        message_type:
+          type: string
+          const: InquireExternalTransferResult.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: Echo the triggering command operation_id unchanged.
+        outcome:
+          type: string
+          enum:
+          - APPLIED
+          - REJECTED
+          - UNKNOWN
+          - PENDING
+          description: Outcome of handling this command, NOT external settlement status. APPLIED means durable acceptance
+            for execution, or completed lookup for inquiry; inspect data.status separately.
+        data:
+          $ref: '#/components/schemas/ExternalTransferInquiryData'
+        error:
+          $ref: '#/components/schemas/OperationError'
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - causation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - outcome
+      allOf:
+      - if:
+          properties:
+            outcome:
+              const: APPLIED
+          required:
+          - outcome
+        then:
+          required:
+          - data
+          not:
+            required:
+            - error
+      - if:
+          properties:
+            outcome:
+              enum:
+              - REJECTED
+              - UNKNOWN
+          required:
+          - outcome
+        then:
+          required:
+          - error
+          not:
+            required:
+            - data
+      - if:
+          properties:
+            outcome:
+              const: PENDING
+          required:
+          - outcome
+        then:
+          not:
+            anyOf:
+            - required:
+              - data
+            - required:
+              - error
+      description: Dedicated reply to InquireExternalTransfer. S2/S1 result types cannot satisfy this schema. Echo
+        transaction_id, correlation_id and operation_id; causation_id references triggering command message_id.
+        All cross-message equality and expected-operation checks require runtime validation.
+x-contract-rules:
+  perspective: All actions are S3 perspective. S5 reverses send/receive, retaining topic names and payloads. operation.reply
+    is a contract declaration, not an automatically implemented RPC transport.
+  iban: 'Exactly one destination field: data.dest_iban. It replaces dest_account_id/dest_acc_id, not supplements
+    them. Required in transfer request and both successful reply bodies. Source IBAN is not added because user mentions
+    destination twice. Normalize user input before publishing; require canonical IR+24 digits, checksum mod97 and
+    non-099 external bank code at runtime. Never log unmasked full IBAN by default.'
+  identity: S3 generates and persists transaction_id, operation_id and command message_id; Kafka does not generate
+    these business JSON fields. All workflow steps share transaction_id but distinct commands have distinct operation_id.
+    S5 replies echo transaction_id/correlation_id/operation_id and use causation_id=triggering command message_id.
+    Replies have their own message_id. record key is set by producer, not generated magically.
+  idempotency: operation_id is the internal idempotency key; no duplicate idempotency_key field. S5 must deduplicate
+    by authenticated S3 principal + operation_id, bound to command type + transaction_id + canonical business data.
+    Same inputs return stored result; changed inputs return IDEMPOTENCY_KEY_REUSED. New publication retry may change
+    message_id/time but not operation_id or business inputs; redelivery of a stored message preserves message_id.
+    Do not fingerprint timestamps/message IDs. Re-check auth before replay response. New deliberate inquiry has
+    a new operation_id to read fresh state.
+  financial-dedup: 'Also enforce one external transfer per transaction_id, with immutable destination/amount/currency,
+    even if a client sends another operation_id. Persist dedup, accepted transfer and result/outbox atomically.
+    External network submission is not part of this local DB transaction: use a stable downstream idempotency/reference
+    key and recover/query uncertain submissions. Never blindly send a second payment after an ambiguous network
+    response. Kafka producer idempotence alone cannot ensure exactly-once external settlement.'
+  http-key: External HTTP Idempotency-Key stays required by GEN-07. S3 persists its mapping to transaction_id and
+    per-command operation_id. Do not use the same key for execution and every inquiry.
+  receipt-vs-settlement: ExecuteExternalTransferResult APPLIED confirms durable S5 acceptance only; data.status
+    distinguishes ACCEPTED/PROCESSING/SETTLED. REJECTED confirms no acceptance by THIS command, not absence of earlier
+    commands. UNKNOWN means acceptance/effect cannot be determined. A query APPLIED with data.status FAILED means
+    the lookup succeeded and the transfer definitively failed; it is not a query-handling rejection.
+  inquiry: Query target is envelope.transaction_id and data is {}. Return immutable accepted inputs, stable S5 tracking
+    reference, recorded status and updated_at. NOT_FOUND is a REJECTED inquiry with OperationError code NOT_FOUND/status404,
+    NOT a settlement status or proof the command can never execute. Transport lag/in-flight command/unknown network
+    outcome must not be interpreted as no payment. UNKNOWN snapshot is valid when lookup succeeds but settlement
+    is uncertain; outcome UNKNOWN+error is used if the lookup itself cannot complete.
+  outcomes: APPLIED requires typed data, forbids error. REJECTED/UNKNOWN require full error, forbid success data.
+    PENDING has neither, does not permit workflow advancement, and requires durable eventual completion/recovery
+    or inquiry. Error problem.status is HTTP-equivalent metadata, not a Kafka response code. Broker auth/ACL/size
+    failures may yield no application reply.
+  followup: This proposal uses polling for later settlement updates; no unsolicited final-result push event is invented.
+    S3 continues inquiries for ACCEPTED/PROCESSING/UNKNOWN. A new status-update push topic can be agreed separately.
+    Payment may remain non-final for a batch network. Poll interval, deadlines and recovery/escalation policies
+    require measurable provider agreement.
+  safety: S3 must not label the payment settled at ACCEPTED or PROCESSING; only SETTLED supplies final S5 settlement
+    evidence under this agreed contract. S3 coordinates the ledger saga separately. Do not release/reverse holds
+    or resubmit on timeout, UNKNOWN, missing result or NOT_FOUND alone. FAILED permits compensation only after authoritative
+    no-settlement/no-inflight guarantee. S3 must validate snapshot inputs against its stored transfer and guard
+    stale/out-of-order replies; updated_at is not a total-order version.
+  replay: Store and deduplicate replies. New retry message response echoes that retry message_id in causation_id
+    and retains operation_id; persist its own response identity/outbox. Replayed query result is a historical snapshot;
+    do not overwrite newer/final state. Retention must cover all permitted retry/replay windows and financial audit;
+    agree concrete settings before deployment.
+  security: Payload producer is not authentication. TLS/SASL, ACLs, principal authorization, credentials via environment,
+    data retention, masking and DLQ policy require S5/deployment agreement. Do not automatically reuse S1 token
+    audience for S5.
+  approval-and-compatibility: 'Breaking proposed v3: all topic suffixes v3, schema_version3.0 and message_typev3.
+    S5 must approve Kafka support, new typed response/snapshot fields/status semantics/reference and recovery rules.
+    api.txt specifies no detailed response body. Coordinate migration from v2; do not run both generations for one
+    transfer without shared dedup. S5 inquiry HTTP path /api/v1/ldg/inquiry in api.txt needs confirmation. Only
+    this standalone file is revised, not master asyncAPI, HTTP files, code or broker config.'

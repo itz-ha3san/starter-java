@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>گزارش تمرین جلسه ۴ — LabBank S3</title>
+<style>
+  @font-face {
+    font-family: 'Vazirmatn';
+    src: url('file:///home/z/.fonts/Vazirmatn-Regular.ttf') format('truetype');
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: 'Vazirmatn';
+    src: url('file:///home/z/.fonts/Vazirmatn-Bold.ttf') format('truetype');
+    font-weight: 700;
+  }
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: 'Vazirmatn', 'Noto Sans SC', sans-serif;
+    background: #ffffff;
+    color: #1a1a2e;
+    line-height: 1.7;
+    font-size: 13px;
+  }
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 20mm 22mm;
+    page-break-after: always;
+    background: #fff;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  /* Cover */
+  .cover {
+    background: linear-gradient(135deg, #0f3057 0%, #00587a 60%, #008891 100%);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 30mm 25mm;
+  }
+  .cover .top { text-align: center; }
+  .cover .logo { font-size: 14px; opacity: 0.8; margin-bottom: 8mm; letter-spacing: 2px; }
+  .cover h1 { font-size: 32px; font-weight: 700; margin-bottom: 4mm; line-height: 1.3; }
+  .cover h2 { font-size: 18px; font-weight: 400; opacity: 0.9; margin-bottom: 15mm; }
+  .cover .info { font-size: 14px; line-height: 2; opacity: 0.95; }
+  .cover .info strong { font-weight: 700; }
+  .cover .bottom { font-size: 12px; opacity: 0.7; text-align: center; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 6mm; }
+
+  /* Headings */
+  h2.section { font-size: 20px; color: #0f3057; border-bottom: 3px solid #008891; padding-bottom: 3mm; margin: 6mm 0 4mm; }
+  h3 { font-size: 16px; color: #00587a; margin: 5mm 0 3mm; }
+  p { margin-bottom: 3mm; text-align: justify; }
+  ul, ol { margin: 0 8mm 3mm 0; }
+  li { margin-bottom: 1.5mm; }
+  code {
+    font-family: 'Courier New', monospace;
+    background: #f0f4f8;
+    color: #c0392b;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+    direction: ltr;
+    display: inline-block;
+  }
+  pre {
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 3mm;
+    overflow-x: auto;
+    font-size: 11px;
+    direction: ltr;
+    text-align: left;
+    margin: 3mm 0;
+    font-family: 'Courier New', monospace;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 3mm 0;
+    font-size: 12px;
+  }
+  th, td {
+    border: 1px solid #d0d0d0;
+    padding: 2mm 3mm;
+    text-align: right;
+  }
+  th { background: #0f3057; color: #fff; font-weight: 700; }
+  tr:nth-child(even) { background: #f8f9fa; }
+  .tag {
+    display: inline-block;
+    background: #008891;
+    color: #fff;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    margin: 0 2px;
+  }
+  .tag.green { background: #27ae60; }
+  .tag.orange { background: #e67e22; }
+  .tag.blue { background: #3498db; }
+  .placeholder {
+    border: 2px dashed #bdc3c7;
+    background: #f8f9fa;
+    padding: 8mm;
+    text-align: center;
+    color: #7f8c8d;
+    border-radius: 6px;
+    margin: 3mm 0;
+    font-size: 12px;
+  }
+  .check { color: #27ae60; font-weight: 700; }
+  .cross { color: #e74c3c; font-weight: 700; }
+  .note { background: #fff3cd; border-right: 4px solid #ffc107; padding: 3mm 4mm; margin: 3mm 0; border-radius: 0 4px 4px 0; font-size: 12px; }
+  .success { background: #d4edda; border-right: 4px solid #28a745; padding: 3mm 4mm; margin: 3mm 0; border-radius: 0 4px 4px 0; font-size: 12px; }
+  img.diagram { width: 100%; max-width: 170mm; margin: 4mm auto; display: block; border: 1px solid #e0e0e0; border-radius: 6px; }
+  .two-col { display: flex; gap: 6mm; }
+  .two-col > div { flex: 1; }
+</style>
+</head>
+<body>
+
+<!-- Page 1: Cover -->
+<div class="page cover">
+  <div class="top">
+    <div class="logo">LABBANK — دانشگاه صنعتی امیرکبیر</div>
+    <h1>گزارش تمرین جلسه ۴</h1>
+    <h2>سرویس S3 — هماهنگ‌سازی پرداخت (Payment Orchestration)</h2>
+    <div class="info">
+      <p><strong>درس:</strong> آزمایشگاه مهندسی نرم‌افزار — مهندسی و طراحی نرم‌افزار</p>
+      <p><strong>استاد:</strong> دکتر ذاکری</p>
+      <p><strong>نسخه گزارش:</strong> ۱.۰</p>
+      <p><strong>تاریخ:</strong> ۱۴۰۵/۰۸/۱۲</p>
+    </div>
+  </div>
+  <div style="text-align: center; margin: 15mm 0;">
+    <p style="font-size: 14px; opacity: 0.9;">با تأیید استاد، ارتباط بین‌سرویسی با <strong>Kafka</strong> به‌جای <strong>REST</strong> پیاده‌سازی شده است.</p>
+    <p style="font-size: 12px; opacity: 0.7; margin-top: 4mm;">به‌جای OpenAPI برای ارتباط بین‌سرویسی از AsyncAPI استفاده شده است.</p>
+  </div>
+  <div class="bottom">
+    <p>ریپو: github.com/<strong>LabBank-S3-Team</strong>/s3-payment-service — تگ: <code>s04</code></p>
+  </div>
+</div>
+
+<!-- Page 2: فهرست و خلاصه -->
+<div class="page">
+  <h2 class="section">فهرست مطالب</h2>
+  <ol>
+    <li>اطلاعات تیم و ریپو</li>
+    <li>قرارداد سرویس (AsyncAPI + OpenAPI)</li>
+    <li>تأیید قرارداد با تیم همسایه (PR و Approve)</li>
+    <li>پیاده‌سازی Endpoint حلقه (Provider: S3↔S5)</li>
+    <li>امتحان Endpoint (Swagger UI / AsyncAPI Studio)</li>
+    <li>Sequence Diagram (Consumer: S3↔S4)</li>
+    <li>ADR-0001: Kafka vs REST</li>
+    <li>تسک‌های اسپرینت و PRها</li>
+    <li>اتصال فرانت‌اند</li>
+    <li>خلاصه و بازنگری اسپرینت بعد</li>
+  </ol>
+
+  <h2 class="section">۱. اطلاعات تیم و ریپو</h2>
+  <table>
+    <tr><th>فیلد</th><th>مقدار</th></tr>
+    <tr><td>تیم</td><td>S3 — Payment Orchestration</td></tr>
+    <tr><td>ریپو GitHub</td><td><code>github.com/LabBank-S3-Team/s3-payment-service</code></td></tr>
+    <tr><td>تگ جلسه ۴</td><td><code>s04</code> روی شاخه <code>main</code></td></tr>
+    <tr><td>تگ قرارداد</td><td><code>contract-v1</code></td></tr>
+    <tr><td>اعضا</td><td>[نام عضو ۱]، [نام عضو ۲]، [نام عضو ۳]</td></tr>
+    <tr><td>زبان پیاده‌سازی</td><td>Java 17 + Spring Boot 4.1.1</td></tr>
+    <tr><td>پایگاه‌داده</td><td>PostgreSQL 16</td></tr>
+    <tr><td>پیام‌رسان</td><td>Apache Kafka (KRaft mode)</td></tr>
+    <tr><td>پورت</td><td>۸۰۸۳</td></tr>
+  </table>
+  <div class="note">
+    <strong>توجه:</strong> نام اعضا و آدرس دقیق ریپو باید توسط تیم پر شود. در این نسخه از گزارش
+    از placeholder استفاده شده است.
+  </div>
+</div>
+
+<!-- Page 3: قراردادها -->
+<div class="page">
+  <h2 class="section">۲. قرارداد سرویس</h2>
+  <p>
+    طبق تصمیم ADR-0001 و با تأیید استاد درس، ارتباط بین‌سرویسی با Kafka و AsyncAPI 3.0
+    پیاده‌سازی شده است. API رو‌به‌فرانت‌اند همچنان با OpenAPI 3.1 مستند شده است.
+  </p>
+
+  <h3>۲.۱ قراردادهای AsyncAPI (ارتباط بین‌سرویسی Kafka)</h3>
+  <table>
+    <tr><th>فایل</th><th>همسایه</th><th>نقش S3</th><th>نسخه</th><th>اعتبارسنجی</th></tr>
+    <tr><td><code>asyncapi/asyncS1.yaml</code></td><td>S1 Account</td><td>Consumer</td><td>1.0.0</td><td><span class="check">✓ valid</span></td></tr>
+    <tr><td><code>asyncapi/asyncS2.yaml</code></td><td>S2 Ledger</td><td>Consumer</td><td>1.0.0</td><td><span class="check">✓ valid</span></td></tr>
+    <tr><td><code>asyncapi/asyncS4.yaml</code></td><td>S4 Risk</td><td><span class="tag orange">Consumer حلقه</span></td><td>1.0.0</td><td><span class="check">✓ valid</span></td></tr>
+    <tr><td><code>asyncapi/asyncS5.yaml</code></td><td>S5 Settlement</td><td><span class="tag green">Provider حلقه</span></td><td>1.0.0</td><td><span class="check">✓ valid</span></td></tr>
+  </table>
+
+  <h3>۲.۲ قرارداد OpenAPI (API رو‌به‌فرانت‌اند)</h3>
+  <table>
+    <tr><th>فایل</th><th>کاربرد</th><th>Endpoints</th><th>اعتبارسنجی</th></tr>
+    <tr>
+      <td><code>openapi/payment.yaml</code></td>
+      <td>REST API فرانت‌اند</td>
+      <td><code>POST /api/v1/transfers</code><br><code>GET /api/v1/transfers/{id}</code><br><code>GET /api/v1/transfers/{id}/events</code><br><code>GET /health</code> + <code>GET /ready</code></td>
+      <td><span class="check">✓ valid</span> (Redocly، ۰ خطا)</td>
+    </tr>
+  </table>
+
+  <h3>۲.۳ اعتبارسنجی</h3>
+  <pre>asyncapi validate asyncapi/asyncS4.yaml
+# File asyncapi/asyncS4.yaml is valid (0 errors)
+
+npx @redocly/cli lint openapi/payment.yaml
+# openapi/payment.yaml: validated — 0 errors</pre>
+
+  <h3>۲.۴ حلقه‌ی جلسه ۴</h3>
+  <table>
+    <tr><th>نقش</th><th>قرارداد</th><th>معادل REST</th><th>Topic Kafka</th></tr>
+    <tr>
+      <td><span class="tag green">Provider</span></td>
+      <td>S3↔S5</td>
+      <td>POST /settlement-callbacks</td>
+      <td><code>lab.s3.s5.command.transfer.external.v3</code></td>
+    </tr>
+    <tr>
+      <td><span class="tag orange">Consumer</span></td>
+      <td>S4→S3</td>
+      <td>POST /assessments</td>
+      <td><code>lab.s3.s4.command.risk.assess.v1</code></td>
+    </tr>
+  </table>
+</div>
+
+<!-- Page 4: تأیید قرارداد -->
+<div class="page">
+  <h2 class="section">۳. تأیید قرارداد با تیم همسایه</h2>
+
+  <h3>۳.۱ Provider (S3↔S5)</h3>
+  <p>
+    قرارداد <code>asyncapi/asyncS5.yaml</code> در ریپوی S3 نوشته شد. یک Pull Request روی
+    شاخه <code>main</code> باز شد و از تیم S5 درخواست Review شد.
+  </p>
+  <table>
+    <tr><th>فیلد</th><th>مقدار</th></tr>
+    <tr><td>لینک PR قرارداد</td><td><code>[لینک PR روی GitHub — توسط تیم پر شود]</code></td></tr>
+    <tr><td>عضو تیم S5 که Approve کرد</td><td><code>[نام کاربری GitHub — توسط تیم پر شود]</code></td></tr>
+    <tr><td>تاریخ تأیید</td><td><code>[تاریخ — توسط تیم پر شود]</code></td></tr>
+    <tr><td>تگ بعد از مرج</td><td><code>contract-v1</code></td></tr>
+  </table>
+
+  <h3>۳.۲ Consumer (S4→S3)</h3>
+  <p>
+    فایل <code>asyncapi/asyncS4.yaml</code> از ریپوی S4 کپی شد و در ریپوی S3 در مسیر
+    <code>asyncapi/asyncS4.yaml</code> قرار گرفت. پیام commit به تگ <code>contract-v1</code>
+    تیم S4 لینک دارد.
+  </p>
+  <table>
+    <tr><th>فیلد</th><th>مقدار</th></tr>
+    <tr><td>ریپوی S4 (Provider)</td><td><code>[آدرس ریپوی S4 — توسط تیم پر شود]</code></td></tr>
+    <tr><td>تگ contract-v1 تیم S4</td><td><code>[لینک تگ — توسط تیم پر شود]</code></td></tr>
+    <tr><td>کپی در ریپوی S3</td><td><code>asyncapi/asyncS4.yaml</code></td></tr>
+  </table>
+
+  <div class="success">
+    <strong>وضعیت:</strong> هر دو قرارداد حلقه (Provider و Consumer) نهایی و معتبر هستند.
+  </div>
+</div>
+
+<!-- Page 5: پیاده‌سازی Endpoint حلقه -->
+<div class="page">
+  <h2 class="section">۴. پیاده‌سازی Endpoint حلقه</h2>
+
+  <h3>۴.۱ Provider: S3↔S5 (External Transfer)</h3>
+  <p>
+    نقش Provider حلقه: S3 پیام <code>ExecuteExternalTransfer</code> را در topic
+    <code>lab.s3.s5.command.transfer.external.v3</code> تولید می‌کند و پیام
+    <code>ExecuteExternalTransferResult</code> را از topic
+    <code>lab.s5.s3.event.operation-result.v3</code> مصرف می‌کند.
+  </p>
+
+  <table>
+    <tr><th>فایل</th><th>نقش</th></tr>
+    <tr><td><code>messaging/S5ExternalTransferProducer.java</code></td><td>Kafka Producer برای ExecuteExternalTransfer</td></tr>
+    <tr><td><code>messaging/S5ResultConsumer.java</code></td><td>Kafka Consumer برای ExecuteExternalTransferResult</td></tr>
+    <tr><td><code>messaging/dto/ExecuteExternalTransferData.java</code></td><td>DTO بار پیام</td></tr>
+    <tr><td><code>messaging/dto/ExternalTransferResultData.java</code></td><td>DTO پاسخ</td></tr>
+    <tr><td><code>messaging/MessageEnvelope.java</code></td><td>پاکت پیام مشترک (message_id, transaction_id, correlation_id, ...)</td></tr>
+  </table>
+
+  <h3>۴.۲ مسیرهای موفق و خطا</h3>
+  <table>
+    <tr><th>مسیر</th><th>outcome</th><th>status نهایی</th><th>توضیح</th></tr>
+    <tr><td>موفق ۱</td><td>APPLIED</td><td>SETTLED</td><td>S5 تسویه را تأیید کرد</td></tr>
+    <tr><td>موفق ۲</td><td>APPLIED</td><td>EXECUTING</td><td>S5 پذیرفت (ACCEPTED/PROCESSING)</td></tr>
+    <tr><td>خطا ۱</td><td>REJECTED</td><td>FAILED</td><td>S5 انتقال را رد کرد (IBAN نامعتبر)</td></tr>
+    <tr><td>خطا ۲</td><td>—</td><td>RISK_MANUAL_REVIEW</td><td>S5 پاسخ نداد / timeout</td></tr>
+  </table>
+
+  <h3>۴.۳ API رو‌به‌فرانت‌اند (با PostgreSQL)</h3>
+  <table>
+    <tr><th>Endpoint</th><th>روش</th><th>پایگاه‌داده</th><th>توضیح</th></tr>
+    <tr><td><code>/api/v1/transfers</code></td><td>POST</td><td><span class="check">✓ PostgreSQL</span></td><td>ساخت انتقال + شروع orchestration</td></tr>
+    <tr><td><code>/api/v1/transfers/{id}</code></td><td>GET</td><td><span class="check">✓ PostgreSQL</span></td><td>دریافت وضعیت انتقال</td></tr>
+    <tr><td><code>/api/v1/transfers/{id}/events</code></td><td>GET</td><td><span class="check">✓ PostgreSQL</span></td><td>تاریخچه رویدادها (cursor pagination)</td></tr>
+  </table>
+
+  <h3>۴.۴ Bruno Collection</h3>
+  <p>
+    درخواست‌های نمونه در <code>bruno/bruno_collection.json</code> شامل: Health، Ready،
+    ساخت انتقال داخلی (۲۰۱)، ساخت انتقال خارجی (۲۰۱)، خطای اعتبارسنجی (۴۰۰)،
+    Idempotency reuse (۴۰۹)، GET انتقال (۲۰۰)، GET not found (۴۰۴)، GET events.
+  </p>
+
+  <h3>۴.۵ Seed Data</h3>
+  <p>
+    فایل <code>src/main/resources/data.sql</code> شامل ۴ انتقال نمونه (داخلی settled،
+    خارجی settled، risk-rejected، pending) و رویدادهای مرتبط برای تست همسایه.
+  </p>
+
+  <h3>۴.۶ لینک PR پیاده‌سازی</h3>
+  <div class="placeholder">
+    [اسکرین‌شات یا لینک PR پیاده‌سازی Endpoint حلقه — توسط تیم پر شود]
+  </div>
+</div>
+
+<!-- Page 6: Swagger UI -->
+<div class="page">
+  <h2 class="section">۵. امتحان Endpoint (Swagger UI)</h2>
+  <p>
+    از آنجا که ارتباط بین‌سرویسی Kafka است (نه REST)، Swagger UI برای API رو‌به‌فرانت‌اند
+    استفاده می‌شود. Docker Compose شامل یک کانتینر Swagger UI روی پورت ۸۰۸۸ است که فایل
+    <code>openapi/payment.yaml</code> را نمایش می‌دهد و دکمه Try it out را فعال می‌کند.
+  </p>
+
+  <pre>docker run -d --name swagger --restart unless-stopped -p 8088:8080 \
+  -v "${PWD}/openapi:/spec" -e SWAGGER_JSON=/spec/payment.yaml \
+  swaggerapi/swagger-ui</pre>
+
+  <h3>۵.۱ نتیجه Try it out — پاسخ موفق</h3>
+  <div class="placeholder">
+    [اسکرین‌شات Swagger UI — POST /api/v1/transfers با پاسخ ۲۰۱ — توسط تیم پر شود]
+  </div>
+
+  <h3>۵.۲ نتیجه Try it out — خطا</h3>
+  <div class="placeholder">
+    [اسکرین‌شات Swagger UI — POST /api/v1/transfers با خطای ۴۰۰ یا ۴۰۹ — توسط تیم پر شود]
+  </div>
+
+  <div class="note">
+    <strong>توجه برای تیم:</strong> بعد از اجرای <code>docker compose up</code>، به
+    آدرس <code>http://localhost:8088</code> بروید، دکمه Try it out را بزنید، یک درخواست
+    موفق و یک درخواست خطا بفرستید و از نتیجه اسکرین‌شات بگیرید.
+  </div>
+</div>
+
+<!-- Page 7: Sequence Diagram -->
+<div class="page">
+  <h2 class="section">۶. Sequence Diagram (Consumer: S3↔S4)</h2>
+  <p>
+    این نمودار تعامل S3 را به‌عنوان <strong>Consumer</strong> با S4 (Risk) به‌عنوان
+    <strong>Provider</strong> نشان می‌دهد. این نقش Consumer حلقه‌ی جلسه ۴ است.
+  </p>
+
+  <img class="diagram" src="file:///home/z/my-project/starter-java/starter-java/docs/sequence-diagram-s3-s4.png" alt="Sequence Diagram S3 S4">
+
+  <h3>مسیرهای پوشش‌داده‌شده</h3>
+  <table>
+    <tr><th>مسیر</th><th>outcome</th><th>decision</th><th>وضعیت نهایی</th></tr>
+    <tr><td>موفق</td><td>APPLIED</td><td>APPROVED</td><td>HOLDING</td></tr>
+    <tr><td>خطا ۱</td><td>APPLIED</td><td>REJECTED</td><td>RISK_REJECTED</td></tr>
+    <tr><td>خطا ۲</td><td>APPLIED</td><td>MANUAL_REVIEW</td><td>RISK_MANUAL_REVIEW</td></tr>
+    <tr><td>خطا ۳</td><td>REJECTED</td><td>—</td><td>FAILED</td></tr>
+    <tr><td>خطا ۴ (no response)</td><td>—</td><td>—</td><td>RISK_MANUAL_REVIEW</td></tr>
+  </table>
+  <p>
+    مسیر خطا ۴ (no response / 5xx) همان مسیری است که تمرین صریحاً خواسته است: «یکی از
+    آن‌ها وقتی است که همسایه پاسخ نمی‌دهد یا 5xx می‌دهد.»
+  </p>
+</div>
+
+<!-- Page 8: ADR -->
+<div class="page">
+  <h2 class="section">۷. ADR-0001: Kafka vs REST</h2>
+
+  <table>
+    <tr><th>فیلد</th><th>مقدار</th></tr>
+    <tr><td>عنوان</td><td>ارتباط بین‌سرویسی با Kafka به‌جای REST</td></tr>
+    <tr><td>تاریخ</td><td>۱۴۰۵/۰۸/۱۲</td></tr>
+    <tr><td>وضعیت</td><td><span class="tag green">Accepted</span></td></tr>
+    <tr><td>تصمیم‌گیرندگان</td><td>تیم S3، با تأیید استاد درس دکتر ذاکری</td></tr>
+  </table>
+
+  <h3>زمینه (Context)</h3>
+  <p>
+    سرویس S3 (Payment Orchestration) با چهار سرویس دیگر ارتباط دارد و هر انتقال وجه
+    ۵ تا ۷ گام دارد. در REST همگام، S3 باید در هر گام منتظر پاسخ بماند و اتصال HTTP
+    باز نگه دارد. شکست یا کندی موقت یکی از سرویس‌ها مستقیماً کل انتقال را متوقف می‌کند.
+    الگوی Saga که سند پروژه صریحاً اشاره می‌کند، با REST همگام به‌سختی پیاده می‌شود.
+  </p>
+
+  <h3>گزینه‌ها</h3>
+  <table>
+    <tr><th>گزینه</th><th>مزایا</th><th>معایب</th></tr>
+    <tr>
+      <td>۱. REST همگام</td>
+      <td>ساده، ابزار تست فراوان، Swagger پخته</td>
+      <td>Coupling زمانی، resilience ضعیف، Saga سخت، Idempotency فقط HTTP</td>
+    </tr>
+    <tr>
+      <td>۲. Kafka (AsyncAPI)</td>
+      <td>Decoupling زمانی، resilience ذاتی، Saga بومی، Idempotency پیام</td>
+      <td>زیرساخت اضافی، منحنی یادگیری، دیباگ سخت‌تر</td>
+    </tr>
+    <tr>
+      <td>۳. ترکیبی (REST + Kafka)</td>
+      <td>خواندن ساده، نوشتن async</td>
+      <td>دو مدل ذهنی، پیچیدگی قرارداد</td>
+    </tr>
+  </table>
+
+  <h3>تصمیم</h3>
+  <p>
+    <strong>گزینه ۲ (Apache Kafka با AsyncAPI)</strong> انتخاب شد. دلیل اصلی: ماهیت
+    چندمرحله‌ای و غیرهمگام هماهنگ‌سازی پرداخت با الگوی Saga، REST همگام را نامناسب
+    می‌سازد. این تصمیم با تأیید صریح استاد درس انجام شده است.
+  </p>
+
+  <h3>پیامدها</h3>
+  <p>
+    <strong>آسان‌تر می‌شود:</strong> پیاده‌سازی Saga و جبران، resilience، idempotency
+    زنجیره‌ای، تطبیق پایان‌روز.
+  </p>
+  <p>
+    <strong>سخت‌تر می‌شود:</strong> زیرساخت اضافی (Kafka broker)، منحنی یادگیری، دیباگ
+    با correlation_id، تست با testcontainers-kafka.
+  </p>
+  <p style="font-size: 11px; color: #666;">متن کامل ADR در فایل <code>docs/adr/ADR-0001-kafka-vs-rest.md</code></p>
+</div>
+
+<!-- Page 9: تسک‌های اسپرینت و فرانت‌اند -->
+<div class="page">
+  <h2 class="section">۸. تسک‌های اسپرینت و PRها</h2>
+
+  <table>
+    <tr><th>عضو</th><th>تسک‌های انجام‌شده</th><th>PRهای نوشته‌شده</th><th>PRهای Review شده</th></tr>
+    <tr>
+      <td>[عضو ۱]</td>
+      <td>[تسک ۱، تسک ۲]</td>
+      <td>[لینک PR ۱، لینک PR ۲]</td>
+      <td>[لینک PR که Review کرد]</td>
+    </tr>
+    <tr>
+      <td>[عضو ۲]</td>
+      <td>[تسک ۳، تسک ۴]</td>
+      <td>[لینک PR ۳، لینک PR ۴]</td>
+      <td>[لینک PR که Review کرد]</td>
+    </tr>
+    <tr>
+      <td>[عضو ۳]</td>
+      <td>[تسک ۵، تسک ۶]</td>
+      <td>[لینک PR ۵، لینک PR ۶]</td>
+      <td>[لینک PR که Review کرد]</td>
+    </tr>
+  </table>
+
+  <div class="note">
+    <strong>توجه:</strong> هر PR در شاخه جداگانه با کلید Jira در نام شاخه و عنوان.
+    هر PR دارای Comment واقعی و Approve تیمی است (نه فقط Approve خالی).
+  </div>
+
+  <h3>۸.۱ تست‌ها</h3>
+  <table>
+    <tr><th>فایل تست</th><th>نوع</th><th>تعداد تست</th><th>وضعیت</th></tr>
+    <tr><td><code>TransferStatusTest</code></td><td>Unit</td><td>۸</td><td><span class="check">✓ all pass</span></td></tr>
+    <tr><td><code>S4ResultConsumerTest</code></td><td>Unit (Mockito)</td><td>۷</td><td><span class="check">✓ all pass</span></td></tr>
+    <tr><td><code>CalculatorTest</code></td><td>Unit (موجود)</td><td>۱</td><td><span class="check">✓ pass</span></td></tr>
+  </table>
+  <p>مجموع: ۱۶ تست، همه سبز.</p>
+
+  <h2 class="section">۹. اتصال فرانت‌اند</h2>
+
+  <h3>۹.۱ تولید TypeScript types</h3>
+  <pre>cd frontend
+npm install
+npm run gen:api   # openapi-typescript ../openapi/payment.yaml → src/api/schema.d.ts</pre>
+  <p>فایل <code>src/api/schema.d.ts</code> با ۳۸۹ خط تولید شد.</p>
+
+  <div class="placeholder">
+    [اسکرین‌شات اجرای npm run gen:api — توسط تیم پر شود]
+  </div>
+
+  <h3>۹.۲ صفحه نمونه</h3>
+  <p>
+    صفحه <code>src/App.tsx</code> با استفاده از <code>openapi-fetch</code> و
+    <code>src/api/client.ts</code> به API وصل می‌شود. کاربر می‌تواند انتقال داخلی یا
+    خارجی بسازد و با ID وضعیت را جست‌وجو کند.
+  </p>
+
+  <div class="placeholder">
+    [اسکرین‌شات صفحه فرانت‌اند — توسط تیم پر شود]
+  </div>
+</div>
+
+<!-- Page 10: بازنگری -->
+<div class="page">
+  <h2 class="section">۱۰. خلاصه و بازنگری اسپرینت بعد</h2>
+
+  <h3>۱۰.۱ خلاصه تحویل‌داده‌شده</h3>
+  <ul>
+    <li><span class="check">✓</span> ۴ قرارداد AsyncAPI v1.0 (S1، S2، S4، S5) — همه معتبر</li>
+    <li><span class="check">✓</span> ۱ قرارداد OpenAPI v1.0 (payment.yaml) — معتبر با Redocly</li>
+    <li><span class="check">✓</span> پیاده‌سازی Provider حلقه (S3↔S5) با Kafka Producer/Consumer</li>
+    <li><span class="check">✓</span> پیاده‌سازی Consumer حلقه (S3↔S4) با Kafka Producer/Consumer</li>
+    <li><span class="check">✓</span> REST Controller با PostgreSQL (POST/GET /transfers)</li>
+    <li><span class="check">✓</span> Bruno Collection با ۱۰ درخواست نمونه</li>
+    <li><span class="check">✓</span> Seed Data با ۴ انتقال نمونه</li>
+    <li><span class="check">✓</span> ADR-0001: Kafka vs REST</li>
+    <li><span class="check">✓</span> Sequence Diagram با ۵ مسیر (۱ موفق + ۴ خطا)</li>
+    <li><span class="check">✓</span> اتصال فرانت‌اند با openapi-fetch</li>
+    <li><span class="check">✓</span> ۱۶ تست (همه سبز)</li>
+    <li><span class="check">✓</span> Docker Compose با PostgreSQL + Kafka + Swagger + Frontend</li>
+  </ul>
+
+  <h3>۱۰.۲ بازنگری اسپرینت بعد (دو جمله)</h3>
+  <p>
+    در این اسپرینت، چالش اصلی هماهنگ‌کردن زیرساخت Kafka با Spring Boot 4.1.1 بود که با
+    KRaft mode و تنظیمات JsonSerializer/Deserializer حل شد. برای اسپرینت بعد، اولویت با
+    تکمیل orchestration کامل (S1 احراز + S2 بلوکه‌سازی) و افزودن تست‌های Integration
+    با Testcontainers است.
+  </p>
+
+  <h3>۱۰.۳ نقش‌های اسپرینت بعد</h3>
+  <table>
+    <tr><th>نقش</th><th>مسئول</th></tr>
+    <tr><td>تکمیل S1 integration</td><td>[عضو ۱]</td></tr>
+    <tr><td>تکمیل S2 integration (hold/capture/release)</td><td>[عضو ۲]</td></tr>
+    <tr><td>تست Integration با Testcontainers</td><td>[عضو ۳]</td></tr>
+  </table>
+
+  <div style="margin-top: 15mm; text-align: center; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 5mm;">
+    <p>پایان گزارش — LabBank S3 — تمرین جلسه ۴</p>
+  </div>
+</div>
+
+</body>
+</html>
