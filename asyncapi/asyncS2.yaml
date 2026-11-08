@@ -1,0 +1,1731 @@
+asyncapi: 3.0.0
+info:
+  title: LabBank S3 ↔ S2 — typed ledger replies — PROPOSED
+  version: 0.4.0
+  description: 'S3 perspective. Breaking proposed wire v3: six typed replies, explicit AsyncAPI request/reply mapping,
+    and operation_id idempotency. Baseline checked against local api.txt. Provider Kafka support, successful response
+    fields, inquiry state model, deployment and security require S2/technical approval. This is a contract proposal,
+    not a claim of implemented S2 behavior.'
+defaultContentType: application/json
+servers:
+  local:
+    host: localhost:9092
+    protocol: kafka
+    description: Local-development example only. Production addresses and SASL/TLS policy require agreement.
+channels:
+  sendHoldFunds:
+    address: lab.s3.s2.command.funds.hold.v3
+    messages:
+      HoldFunds:
+        $ref: '#/components/messages/HoldFunds'
+    description: S3 produces, S2 consumes. UTF-8 Kafka record key = payload.transaction_id; receiver checks equality.
+      Same key orders within a partition of THIS topic only, not across command topics.
+  sendExecuteInternalTransfer:
+    address: lab.s3.s2.command.transfer.internal.v3
+    messages:
+      ExecuteInternalTransfer:
+        $ref: '#/components/messages/ExecuteInternalTransfer'
+    description: S3 produces, S2 consumes. UTF-8 Kafka record key = payload.transaction_id; receiver checks equality.
+      Same key orders within a partition of THIS topic only, not across command topics.
+  sendCaptureFunds:
+    address: lab.s3.s2.command.funds.capture.v3
+    messages:
+      CaptureFunds:
+        $ref: '#/components/messages/CaptureFunds'
+    description: S3 produces, S2 consumes. UTF-8 Kafka record key = payload.transaction_id; receiver checks equality.
+      Same key orders within a partition of THIS topic only, not across command topics.
+  sendReleaseFunds:
+    address: lab.s3.s2.command.funds.release.v3
+    messages:
+      ReleaseFunds:
+        $ref: '#/components/messages/ReleaseFunds'
+    description: S3 produces, S2 consumes. UTF-8 Kafka record key = payload.transaction_id; receiver checks equality.
+      Same key orders within a partition of THIS topic only, not across command topics.
+  sendReverseTransfer:
+    address: lab.s3.s2.command.transfer.reverse.v3
+    messages:
+      ReverseTransfer:
+        $ref: '#/components/messages/ReverseTransfer'
+    description: S3 produces, S2 consumes. UTF-8 Kafka record key = payload.transaction_id; receiver checks equality.
+      Same key orders within a partition of THIS topic only, not across command topics.
+  sendInquireLedgerOperation:
+    address: lab.s3.s2.command.operation.inquire.v3
+    messages:
+      InquireLedgerOperation:
+        $ref: '#/components/messages/InquireLedgerOperation'
+    description: S3 produces, S2 consumes. UTF-8 Kafka record key = payload.transaction_id; receiver checks equality.
+      Same key orders within a partition of THIS topic only, not across command topics.
+  receiveS2Result:
+    address: lab.s2.s3.event.operation-result.v3
+    messages:
+      HoldFundsResult:
+        $ref: '#/components/messages/HoldFundsResult'
+      ExecuteInternalTransferResult:
+        $ref: '#/components/messages/ExecuteInternalTransferResult'
+      CaptureFundsResult:
+        $ref: '#/components/messages/CaptureFundsResult'
+      ReleaseFundsResult:
+        $ref: '#/components/messages/ReleaseFundsResult'
+      ReverseTransferResult:
+        $ref: '#/components/messages/ReverseTransferResult'
+      InquireLedgerOperationResult:
+        $ref: '#/components/messages/InquireLedgerOperationResult'
+    description: S2 produces, S3 consumes. Exactly one of six message schemas applies, selected by message_type
+      const; see each send operation.reply.messages. UTF-8 key=transaction_id. Duplicate result delivery is possible;
+      S3 deduplicates message_id and applies state transitions idempotently. Replies may be delayed or absent after
+      transport failure.
+operations:
+  sendHoldFunds:
+    action: send
+    channel:
+      $ref: '#/channels/sendHoldFunds'
+    messages:
+    - $ref: '#/channels/sendHoldFunds/messages/HoldFunds'
+    reply:
+      channel:
+        $ref: '#/channels/receiveS2Result'
+      messages:
+      - $ref: '#/channels/receiveS2Result/messages/HoldFundsResult'
+    summary: HoldFunds → HoldFundsResult
+    description: Fixed asynchronous reply channel; no dynamic reply-to topic. S2 must publish the matching typed
+      result; Kafka acknowledgement is not this result.
+  sendExecuteInternalTransfer:
+    action: send
+    channel:
+      $ref: '#/channels/sendExecuteInternalTransfer'
+    messages:
+    - $ref: '#/channels/sendExecuteInternalTransfer/messages/ExecuteInternalTransfer'
+    reply:
+      channel:
+        $ref: '#/channels/receiveS2Result'
+      messages:
+      - $ref: '#/channels/receiveS2Result/messages/ExecuteInternalTransferResult'
+    summary: ExecuteInternalTransfer → ExecuteInternalTransferResult
+    description: Fixed asynchronous reply channel; no dynamic reply-to topic. S2 must publish the matching typed
+      result; Kafka acknowledgement is not this result.
+  sendCaptureFunds:
+    action: send
+    channel:
+      $ref: '#/channels/sendCaptureFunds'
+    messages:
+    - $ref: '#/channels/sendCaptureFunds/messages/CaptureFunds'
+    reply:
+      channel:
+        $ref: '#/channels/receiveS2Result'
+      messages:
+      - $ref: '#/channels/receiveS2Result/messages/CaptureFundsResult'
+    summary: CaptureFunds → CaptureFundsResult
+    description: Fixed asynchronous reply channel; no dynamic reply-to topic. S2 must publish the matching typed
+      result; Kafka acknowledgement is not this result.
+  sendReleaseFunds:
+    action: send
+    channel:
+      $ref: '#/channels/sendReleaseFunds'
+    messages:
+    - $ref: '#/channels/sendReleaseFunds/messages/ReleaseFunds'
+    reply:
+      channel:
+        $ref: '#/channels/receiveS2Result'
+      messages:
+      - $ref: '#/channels/receiveS2Result/messages/ReleaseFundsResult'
+    summary: ReleaseFunds → ReleaseFundsResult
+    description: Fixed asynchronous reply channel; no dynamic reply-to topic. S2 must publish the matching typed
+      result; Kafka acknowledgement is not this result.
+  sendReverseTransfer:
+    action: send
+    channel:
+      $ref: '#/channels/sendReverseTransfer'
+    messages:
+    - $ref: '#/channels/sendReverseTransfer/messages/ReverseTransfer'
+    reply:
+      channel:
+        $ref: '#/channels/receiveS2Result'
+      messages:
+      - $ref: '#/channels/receiveS2Result/messages/ReverseTransferResult'
+    summary: ReverseTransfer → ReverseTransferResult
+    description: Fixed asynchronous reply channel; no dynamic reply-to topic. S2 must publish the matching typed
+      result; Kafka acknowledgement is not this result.
+  sendInquireLedgerOperation:
+    action: send
+    channel:
+      $ref: '#/channels/sendInquireLedgerOperation'
+    messages:
+    - $ref: '#/channels/sendInquireLedgerOperation/messages/InquireLedgerOperation'
+    reply:
+      channel:
+        $ref: '#/channels/receiveS2Result'
+      messages:
+      - $ref: '#/channels/receiveS2Result/messages/InquireLedgerOperationResult'
+    summary: InquireLedgerOperation → InquireLedgerOperationResult
+    description: Fixed asynchronous reply channel; no dynamic reply-to topic. S2 must publish the matching typed
+      result; Kafka acknowledgement is not this result.
+  receiveS2Result:
+    action: receive
+    channel:
+      $ref: '#/channels/receiveS2Result'
+    messages:
+    - $ref: '#/channels/receiveS2Result/messages/HoldFundsResult'
+    - $ref: '#/channels/receiveS2Result/messages/ExecuteInternalTransferResult'
+    - $ref: '#/channels/receiveS2Result/messages/CaptureFundsResult'
+    - $ref: '#/channels/receiveS2Result/messages/ReleaseFundsResult'
+    - $ref: '#/channels/receiveS2Result/messages/ReverseTransferResult'
+    - $ref: '#/channels/receiveS2Result/messages/InquireLedgerOperationResult'
+components:
+  messages:
+    HoldFunds:
+      name: HoldFunds
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/HoldFunds'
+      examples:
+      - name: synthetic-success-path
+        payload:
+          message_id: 69b30992-c85b-46ba-99db-96ddfdf433d2
+          schema_version: '3.0'
+          transaction_id: cf32f0a1-94f7-4b3f-b62b-b3c1c5c8410c
+          correlation_id: 0273cd6a-028a-4291-b1d2-4d1ba9475104
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S3-PAY
+          message_type: HoldFunds.v3
+          operation_id: ac7b95b4-6f8f-481c-ad47-f8453c0f3ceb
+          data:
+            src_account_id: 001200456789
+            amount: 2500000
+            currency: IRR
+    HoldFundsResult:
+      name: HoldFundsResult
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/HoldFundsResult'
+      examples:
+      - name: synthetic-success-path
+        payload:
+          message_id: f88fddde-6227-4720-8a8b-551447fcd86b
+          schema_version: '3.0'
+          transaction_id: cf32f0a1-94f7-4b3f-b62b-b3c1c5c8410c
+          correlation_id: 0273cd6a-028a-4291-b1d2-4d1ba9475104
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S2-LDG
+          message_type: HoldFundsResult.v3
+          operation_id: ac7b95b4-6f8f-481c-ad47-f8453c0f3ceb
+          data:
+            status: HELD
+          causation_id: 69b30992-c85b-46ba-99db-96ddfdf433d2
+          outcome: APPLIED
+    ExecuteInternalTransfer:
+      name: ExecuteInternalTransfer
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/ExecuteInternalTransfer'
+      examples:
+      - name: synthetic-success-path
+        payload:
+          message_id: 49302a56-055f-4c1f-a370-d647b711adca
+          schema_version: '3.0'
+          transaction_id: cf32f0a1-94f7-4b3f-b62b-b3c1c5c8410c
+          correlation_id: 0273cd6a-028a-4291-b1d2-4d1ba9475104
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S3-PAY
+          message_type: ExecuteInternalTransfer.v3
+          operation_id: b27a6dba-dc91-48f3-898e-780e24f1ef9b
+          data:
+            src_account_id: 001200456789
+            dest_account_id: 001200987654
+            amount: 2500000
+            currency: IRR
+    ExecuteInternalTransferResult:
+      name: ExecuteInternalTransferResult
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/ExecuteInternalTransferResult'
+      examples:
+      - name: synthetic-success-path
+        payload:
+          message_id: 3c1361ac-f038-45c6-a8aa-1b5c141d046d
+          schema_version: '3.0'
+          transaction_id: cf32f0a1-94f7-4b3f-b62b-b3c1c5c8410c
+          correlation_id: 0273cd6a-028a-4291-b1d2-4d1ba9475104
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S2-LDG
+          message_type: ExecuteInternalTransferResult.v3
+          operation_id: b27a6dba-dc91-48f3-898e-780e24f1ef9b
+          data:
+            status: INTERNAL_TRANSFERRED
+          causation_id: 49302a56-055f-4c1f-a370-d647b711adca
+          outcome: APPLIED
+    CaptureFunds:
+      name: CaptureFunds
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/CaptureFunds'
+      examples:
+      - name: synthetic-success-path
+        payload:
+          message_id: 8d0bd68a-c7a1-407f-b548-3675fe6ca6df
+          schema_version: '3.0'
+          transaction_id: cf32f0a1-94f7-4b3f-b62b-b3c1c5c8410c
+          correlation_id: 0273cd6a-028a-4291-b1d2-4d1ba9475104
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S3-PAY
+          message_type: CaptureFunds.v3
+          operation_id: 774d48dc-4df7-4f71-a14c-ea430f5fc471
+          data: {}
+    CaptureFundsResult:
+      name: CaptureFundsResult
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/CaptureFundsResult'
+      examples:
+      - name: synthetic-success-path
+        payload:
+          message_id: bbf620ff-def8-4101-8336-325340755364
+          schema_version: '3.0'
+          transaction_id: cf32f0a1-94f7-4b3f-b62b-b3c1c5c8410c
+          correlation_id: 0273cd6a-028a-4291-b1d2-4d1ba9475104
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S2-LDG
+          message_type: CaptureFundsResult.v3
+          operation_id: 774d48dc-4df7-4f71-a14c-ea430f5fc471
+          data:
+            status: CAPTURED
+          causation_id: 8d0bd68a-c7a1-407f-b548-3675fe6ca6df
+          outcome: APPLIED
+    ReleaseFunds:
+      name: ReleaseFunds
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/ReleaseFunds'
+      examples:
+      - name: synthetic-success-path
+        payload:
+          message_id: 592187fc-49c7-43e2-82af-7367121e2092
+          schema_version: '3.0'
+          transaction_id: cf32f0a1-94f7-4b3f-b62b-b3c1c5c8410c
+          correlation_id: 0273cd6a-028a-4291-b1d2-4d1ba9475104
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S3-PAY
+          message_type: ReleaseFunds.v3
+          operation_id: d9b88d3e-8b06-426e-81f4-c2363a4a193e
+          data: {}
+    ReleaseFundsResult:
+      name: ReleaseFundsResult
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/ReleaseFundsResult'
+      examples:
+      - name: synthetic-success-path
+        payload:
+          message_id: 001fc129-9b35-4c74-993a-4ea64bdccfe6
+          schema_version: '3.0'
+          transaction_id: cf32f0a1-94f7-4b3f-b62b-b3c1c5c8410c
+          correlation_id: 0273cd6a-028a-4291-b1d2-4d1ba9475104
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S2-LDG
+          message_type: ReleaseFundsResult.v3
+          operation_id: d9b88d3e-8b06-426e-81f4-c2363a4a193e
+          data:
+            status: RELEASED
+          causation_id: 592187fc-49c7-43e2-82af-7367121e2092
+          outcome: APPLIED
+    ReverseTransfer:
+      name: ReverseTransfer
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/ReverseTransfer'
+      examples:
+      - name: synthetic-success-path
+        payload:
+          message_id: 43bd1764-4161-4908-97dc-419e7534b739
+          schema_version: '3.0'
+          transaction_id: cf32f0a1-94f7-4b3f-b62b-b3c1c5c8410c
+          correlation_id: 0273cd6a-028a-4291-b1d2-4d1ba9475104
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S3-PAY
+          message_type: ReverseTransfer.v3
+          operation_id: 80fe2097-6462-4a7c-be8c-aadee8975931
+          data: {}
+    ReverseTransferResult:
+      name: ReverseTransferResult
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/ReverseTransferResult'
+      examples:
+      - name: synthetic-success-path
+        payload:
+          message_id: 0b19aba4-c779-4c2e-b764-7c129de33a91
+          schema_version: '3.0'
+          transaction_id: cf32f0a1-94f7-4b3f-b62b-b3c1c5c8410c
+          correlation_id: 0273cd6a-028a-4291-b1d2-4d1ba9475104
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S2-LDG
+          message_type: ReverseTransferResult.v3
+          operation_id: 80fe2097-6462-4a7c-be8c-aadee8975931
+          data:
+            status: REVERSED
+          causation_id: 43bd1764-4161-4908-97dc-419e7534b739
+          outcome: APPLIED
+    InquireLedgerOperation:
+      name: InquireLedgerOperation
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/InquireLedgerOperation'
+      examples:
+      - name: synthetic-success-path
+        payload:
+          message_id: 94266e31-417d-4680-8553-f1ad123d3fc4
+          schema_version: '3.0'
+          transaction_id: cf32f0a1-94f7-4b3f-b62b-b3c1c5c8410c
+          correlation_id: 0273cd6a-028a-4291-b1d2-4d1ba9475104
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S3-PAY
+          message_type: InquireLedgerOperation.v3
+          operation_id: 8cd85f92-b368-4638-ba40-340cadd14330
+          data: {}
+    InquireLedgerOperationResult:
+      name: InquireLedgerOperationResult
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/InquireLedgerOperationResult'
+      examples:
+      - name: synthetic-success-path
+        payload:
+          message_id: 258acc8a-4336-4eb8-8369-ee1ae7b8f6ca
+          schema_version: '3.0'
+          transaction_id: cf32f0a1-94f7-4b3f-b62b-b3c1c5c8410c
+          correlation_id: 0273cd6a-028a-4291-b1d2-4d1ba9475104
+          occurred_at: '2026-01-01T12:00:00Z'
+          producer: S2-LDG
+          message_type: InquireLedgerOperationResult.v3
+          operation_id: 8cd85f92-b368-4638-ba40-340cadd14330
+          data:
+            state: HELD
+          causation_id: 94266e31-417d-4680-8553-f1ad123d3fc4
+          outcome: APPLIED
+  schemas:
+    OperationError:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          minLength: 1
+        retryable:
+          type: boolean
+        public_message:
+          type: string
+          minLength: 1
+        problem:
+          $ref: '#/components/schemas/Problem'
+      required:
+      - code
+      - retryable
+      - public_message
+      - problem
+      description: Application command-processing error, not a Kafka broker status. code supports base project codes
+        and service extensions. Broker ACL/auth/size failures can prevent delivery and may produce no result message.
+        All fields are required. problem.code must equal code; problem.correlation_id must equal the envelope correlation_id
+        (runtime checks). retryable does not authorize starting a new operation; first resolve uncertain financial
+        state.
+    Problem:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        code:
+          type: string
+          minLength: 1
+          description: 'Stable machine-readable code. Base examples: VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN,
+            NOT_FOUND, CONFLICT, IDEMPOTENCY_KEY_REUSED, SERVICE_UNAVAILABLE, UPSTREAM_TIMEOUT. Service-specific
+            codes are permitted.'
+        detail:
+          type: string
+        correlation_id:
+          type: string
+          format: uuid
+      required:
+      - code
+      - correlation_id
+      - detail
+      - status
+      - title
+      - type
+    LedgerInquiryData:
+      type: object
+      additionalProperties: false
+      properties:
+        state:
+          type: string
+          enum:
+          - NOT_STARTED
+          - HELD
+          - INTERNAL_TRANSFERRED
+          - CAPTURED
+          - RELEASED
+          - REVERSED
+          - UNKNOWN
+          description: Proposed S2 durable transfer state, not S3 end-to-end payment/settlement status. NOT_STARTED
+            only after an authoritative lookup; never infer from timeout or missing consumption. UNKNOWN is not
+            safe to execute again.
+      required:
+      - state
+      description: 'New proposed extension: api.txt does not specify an inquiry response body. S2 must approve these
+        state names and semantics before implementation. A successful query can legitimately return state UNKNOWN.
+        Return handling outcome UNKNOWN plus error if the query itself cannot be completed.'
+    HoldFunds:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: Banking transfer UUID assigned and persisted by S3 before the first command; identical across
+            all steps and results. NOT a Kafka-generated ID, broker offset, producer ID, or Kafka transactional.id.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S3-PAY
+        message_type:
+          type: string
+          const: HoldFunds.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: 'S3-assigned UUID of ONE logical command/step, also its application idempotency key. New
+            step: new UUID. Retry or republish of this step: same UUID and same semantic inputs. Inquiry operation_id
+            identifies this query, not the queried mutation.'
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            src_account_id:
+              type: string
+              pattern: ^[0-9]+$
+              minLength: 1
+              description: Account NUMBER, not a UUID or IBAN. Preserve leading zeroes. Length is provider-defined.
+            amount:
+              type: integer
+              format: int64
+              minimum: 1
+              maximum: 9223372036854775807
+              description: Positive integer Iranian rials. Do not parse through floating-point types.
+            currency:
+              type: string
+              const: IRR
+              description: ISO 4217 currency; all amounts in this draft are Iranian rials.
+          required:
+          - src_account_id
+          - amount
+          - currency
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - data
+      description: Proposed HoldFunds command. Deduplicate by authenticated S3 principal + operation_id; type, transaction_id
+        and canonical business data are bound to the key. See x-contract-rules.
+      x-rest-mapping:
+        path: /api/v1/ldg/hold
+        request-field-locations:
+          transaction_id: payload.transaction_id
+          src_account_id: payload.data.src_account_id
+          amount: payload.data.amount
+          currency: payload.data.currency
+        success-http-equivalent: 201
+    HoldFundsResultData:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          const: HELD
+          description: Proposed typed acknowledgement of the durable S2 effect, not an HTTP code or end-to-end settlement
+            result.
+      required:
+      - status
+    HoldFundsResult:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: Banking transfer UUID assigned and persisted by S3 before the first command; identical across
+            all steps and results. NOT a Kafka-generated ID, broker offset, producer ID, or Kafka transactional.id.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+          description: message_id of the command that triggered this result. operation_id remains the identity of
+            the logical operation across retries.
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S2-LDG
+        message_type:
+          type: string
+          const: HoldFundsResult.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: Echo the triggering logical command operation_id unchanged. Never generate a new operation_id
+            in S2.
+        outcome:
+          type: string
+          enum:
+          - APPLIED
+          - REJECTED
+          - UNKNOWN
+          - PENDING
+          description: Handling outcome of the corresponding HoldFunds command, NOT overall settlement status. APPLIED
+            means durable local effect (or completed inquiry); PENDING/UNKNOWN must not be treated as success.
+        data:
+          $ref: '#/components/schemas/HoldFundsResultData'
+        error:
+          $ref: '#/components/schemas/OperationError'
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - causation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - outcome
+      allOf:
+      - if:
+          properties:
+            outcome:
+              const: APPLIED
+          required:
+          - outcome
+        then:
+          required:
+          - data
+          not:
+            required:
+            - error
+      - if:
+          properties:
+            outcome:
+              enum:
+              - REJECTED
+              - UNKNOWN
+          required:
+          - outcome
+        then:
+          required:
+          - error
+          not:
+            required:
+            - data
+      - if:
+          properties:
+            outcome:
+              const: PENDING
+          required:
+          - outcome
+        then:
+          not:
+            anyOf:
+            - required:
+              - data
+            - required:
+              - error
+      description: Only valid reply to HoldFunds. Echo transaction_id/correlation_id/operation_id; causation_id
+        is the triggering command message_id. Success data shape is explicitly defined. These equality checks and
+        dispatch by operation_id require application validation.
+    ExecuteInternalTransfer:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: Banking transfer UUID assigned and persisted by S3 before the first command; identical across
+            all steps and results. NOT a Kafka-generated ID, broker offset, producer ID, or Kafka transactional.id.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S3-PAY
+        message_type:
+          type: string
+          const: ExecuteInternalTransfer.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: 'S3-assigned UUID of ONE logical command/step, also its application idempotency key. New
+            step: new UUID. Retry or republish of this step: same UUID and same semantic inputs. Inquiry operation_id
+            identifies this query, not the queried mutation.'
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            src_account_id:
+              type: string
+              pattern: ^[0-9]+$
+              minLength: 1
+              description: Account NUMBER, not a UUID or IBAN. Preserve leading zeroes. Length is provider-defined.
+            dest_account_id:
+              type: string
+              pattern: ^[0-9]+$
+              minLength: 1
+              description: Account NUMBER, not a UUID or IBAN. Preserve leading zeroes. Length is provider-defined.
+            amount:
+              type: integer
+              format: int64
+              minimum: 1
+              maximum: 9223372036854775807
+              description: Positive integer Iranian rials. Do not parse through floating-point types.
+            currency:
+              type: string
+              const: IRR
+              description: ISO 4217 currency; all amounts in this draft are Iranian rials.
+          required:
+          - src_account_id
+          - dest_account_id
+          - amount
+          - currency
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - data
+      description: Proposed ExecuteInternalTransfer command. Deduplicate by authenticated S3 principal + operation_id;
+        type, transaction_id and canonical business data are bound to the key. See x-contract-rules.
+      x-rest-mapping:
+        path: /api/v1/ldg/internal_transfer
+        request-field-locations:
+          transaction_id: payload.transaction_id
+          src_account_id: payload.data.src_account_id
+          dest_account_id: payload.data.dest_account_id
+          amount: payload.data.amount
+          currency: payload.data.currency
+        success-http-equivalent: 200
+    ExecuteInternalTransferResultData:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          const: INTERNAL_TRANSFERRED
+          description: Proposed typed acknowledgement of the durable S2 effect, not an HTTP code or end-to-end settlement
+            result.
+      required:
+      - status
+    ExecuteInternalTransferResult:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: Banking transfer UUID assigned and persisted by S3 before the first command; identical across
+            all steps and results. NOT a Kafka-generated ID, broker offset, producer ID, or Kafka transactional.id.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+          description: message_id of the command that triggered this result. operation_id remains the identity of
+            the logical operation across retries.
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S2-LDG
+        message_type:
+          type: string
+          const: ExecuteInternalTransferResult.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: Echo the triggering logical command operation_id unchanged. Never generate a new operation_id
+            in S2.
+        outcome:
+          type: string
+          enum:
+          - APPLIED
+          - REJECTED
+          - UNKNOWN
+          - PENDING
+          description: Handling outcome of the corresponding ExecuteInternalTransfer command, NOT overall settlement
+            status. APPLIED means durable local effect (or completed inquiry); PENDING/UNKNOWN must not be treated
+            as success.
+        data:
+          $ref: '#/components/schemas/ExecuteInternalTransferResultData'
+        error:
+          $ref: '#/components/schemas/OperationError'
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - causation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - outcome
+      allOf:
+      - if:
+          properties:
+            outcome:
+              const: APPLIED
+          required:
+          - outcome
+        then:
+          required:
+          - data
+          not:
+            required:
+            - error
+      - if:
+          properties:
+            outcome:
+              enum:
+              - REJECTED
+              - UNKNOWN
+          required:
+          - outcome
+        then:
+          required:
+          - error
+          not:
+            required:
+            - data
+      - if:
+          properties:
+            outcome:
+              const: PENDING
+          required:
+          - outcome
+        then:
+          not:
+            anyOf:
+            - required:
+              - data
+            - required:
+              - error
+      description: Only valid reply to ExecuteInternalTransfer. Echo transaction_id/correlation_id/operation_id;
+        causation_id is the triggering command message_id. Success data shape is explicitly defined. These equality
+        checks and dispatch by operation_id require application validation.
+    CaptureFunds:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: Banking transfer UUID assigned and persisted by S3 before the first command; identical across
+            all steps and results. NOT a Kafka-generated ID, broker offset, producer ID, or Kafka transactional.id.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S3-PAY
+        message_type:
+          type: string
+          const: CaptureFunds.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: 'S3-assigned UUID of ONE logical command/step, also its application idempotency key. New
+            step: new UUID. Retry or republish of this step: same UUID and same semantic inputs. Inquiry operation_id
+            identifies this query, not the queried mutation.'
+        data:
+          type: object
+          additionalProperties: false
+          properties: {}
+          description: Intentionally empty. The complete business input is payload.transaction_id, matching the
+            REST request. S2 resolves its own stored hold/journal by this UUID. Do not resend amount/account or
+            silently select another transfer.
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - data
+      description: Proposed CaptureFunds command. Deduplicate by authenticated S3 principal + operation_id; type,
+        transaction_id and canonical business data are bound to the key. See x-contract-rules.
+      x-rest-mapping:
+        path: /api/v1/ldg/capture
+        request-field-locations:
+          transaction_id: payload.transaction_id
+        success-http-equivalent: 200
+    CaptureFundsResultData:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          const: CAPTURED
+          description: Proposed typed acknowledgement of the durable S2 effect, not an HTTP code or end-to-end settlement
+            result.
+      required:
+      - status
+    CaptureFundsResult:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: Banking transfer UUID assigned and persisted by S3 before the first command; identical across
+            all steps and results. NOT a Kafka-generated ID, broker offset, producer ID, or Kafka transactional.id.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+          description: message_id of the command that triggered this result. operation_id remains the identity of
+            the logical operation across retries.
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S2-LDG
+        message_type:
+          type: string
+          const: CaptureFundsResult.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: Echo the triggering logical command operation_id unchanged. Never generate a new operation_id
+            in S2.
+        outcome:
+          type: string
+          enum:
+          - APPLIED
+          - REJECTED
+          - UNKNOWN
+          - PENDING
+          description: Handling outcome of the corresponding CaptureFunds command, NOT overall settlement status.
+            APPLIED means durable local effect (or completed inquiry); PENDING/UNKNOWN must not be treated as success.
+        data:
+          $ref: '#/components/schemas/CaptureFundsResultData'
+        error:
+          $ref: '#/components/schemas/OperationError'
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - causation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - outcome
+      allOf:
+      - if:
+          properties:
+            outcome:
+              const: APPLIED
+          required:
+          - outcome
+        then:
+          required:
+          - data
+          not:
+            required:
+            - error
+      - if:
+          properties:
+            outcome:
+              enum:
+              - REJECTED
+              - UNKNOWN
+          required:
+          - outcome
+        then:
+          required:
+          - error
+          not:
+            required:
+            - data
+      - if:
+          properties:
+            outcome:
+              const: PENDING
+          required:
+          - outcome
+        then:
+          not:
+            anyOf:
+            - required:
+              - data
+            - required:
+              - error
+      description: Only valid reply to CaptureFunds. Echo transaction_id/correlation_id/operation_id; causation_id
+        is the triggering command message_id. Success data shape is explicitly defined. These equality checks and
+        dispatch by operation_id require application validation.
+    ReleaseFunds:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: Banking transfer UUID assigned and persisted by S3 before the first command; identical across
+            all steps and results. NOT a Kafka-generated ID, broker offset, producer ID, or Kafka transactional.id.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S3-PAY
+        message_type:
+          type: string
+          const: ReleaseFunds.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: 'S3-assigned UUID of ONE logical command/step, also its application idempotency key. New
+            step: new UUID. Retry or republish of this step: same UUID and same semantic inputs. Inquiry operation_id
+            identifies this query, not the queried mutation.'
+        data:
+          type: object
+          additionalProperties: false
+          properties: {}
+          description: Intentionally empty. The complete business input is payload.transaction_id, matching the
+            REST request. S2 resolves its own stored hold/journal by this UUID. Do not resend amount/account or
+            silently select another transfer.
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - data
+      description: Proposed ReleaseFunds command. Deduplicate by authenticated S3 principal + operation_id; type,
+        transaction_id and canonical business data are bound to the key. See x-contract-rules.
+      x-rest-mapping:
+        path: /api/v1/ldg/release
+        request-field-locations:
+          transaction_id: payload.transaction_id
+        success-http-equivalent: 200
+    ReleaseFundsResultData:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          const: RELEASED
+          description: Proposed typed acknowledgement of the durable S2 effect, not an HTTP code or end-to-end settlement
+            result.
+      required:
+      - status
+    ReleaseFundsResult:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: Banking transfer UUID assigned and persisted by S3 before the first command; identical across
+            all steps and results. NOT a Kafka-generated ID, broker offset, producer ID, or Kafka transactional.id.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+          description: message_id of the command that triggered this result. operation_id remains the identity of
+            the logical operation across retries.
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S2-LDG
+        message_type:
+          type: string
+          const: ReleaseFundsResult.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: Echo the triggering logical command operation_id unchanged. Never generate a new operation_id
+            in S2.
+        outcome:
+          type: string
+          enum:
+          - APPLIED
+          - REJECTED
+          - UNKNOWN
+          - PENDING
+          description: Handling outcome of the corresponding ReleaseFunds command, NOT overall settlement status.
+            APPLIED means durable local effect (or completed inquiry); PENDING/UNKNOWN must not be treated as success.
+        data:
+          $ref: '#/components/schemas/ReleaseFundsResultData'
+        error:
+          $ref: '#/components/schemas/OperationError'
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - causation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - outcome
+      allOf:
+      - if:
+          properties:
+            outcome:
+              const: APPLIED
+          required:
+          - outcome
+        then:
+          required:
+          - data
+          not:
+            required:
+            - error
+      - if:
+          properties:
+            outcome:
+              enum:
+              - REJECTED
+              - UNKNOWN
+          required:
+          - outcome
+        then:
+          required:
+          - error
+          not:
+            required:
+            - data
+      - if:
+          properties:
+            outcome:
+              const: PENDING
+          required:
+          - outcome
+        then:
+          not:
+            anyOf:
+            - required:
+              - data
+            - required:
+              - error
+      description: Only valid reply to ReleaseFunds. Echo transaction_id/correlation_id/operation_id; causation_id
+        is the triggering command message_id. Success data shape is explicitly defined. These equality checks and
+        dispatch by operation_id require application validation.
+    ReverseTransfer:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: Banking transfer UUID assigned and persisted by S3 before the first command; identical across
+            all steps and results. NOT a Kafka-generated ID, broker offset, producer ID, or Kafka transactional.id.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S3-PAY
+        message_type:
+          type: string
+          const: ReverseTransfer.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: 'S3-assigned UUID of ONE logical command/step, also its application idempotency key. New
+            step: new UUID. Retry or republish of this step: same UUID and same semantic inputs. Inquiry operation_id
+            identifies this query, not the queried mutation.'
+        data:
+          type: object
+          additionalProperties: false
+          properties: {}
+          description: Intentionally empty. The complete business input is payload.transaction_id, matching the
+            REST request. S2 resolves its own stored hold/journal by this UUID. Do not resend amount/account or
+            silently select another transfer.
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - data
+      description: Proposed ReverseTransfer command. Deduplicate by authenticated S3 principal + operation_id; type,
+        transaction_id and canonical business data are bound to the key. See x-contract-rules.
+      x-rest-mapping:
+        path: /api/v1/ldg/reversal
+        request-field-locations:
+          transaction_id: payload.transaction_id
+        success-http-equivalent: 200
+    ReverseTransferResultData:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          const: REVERSED
+          description: Proposed typed acknowledgement of the durable S2 effect, not an HTTP code or end-to-end settlement
+            result.
+      required:
+      - status
+    ReverseTransferResult:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: Banking transfer UUID assigned and persisted by S3 before the first command; identical across
+            all steps and results. NOT a Kafka-generated ID, broker offset, producer ID, or Kafka transactional.id.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+          description: message_id of the command that triggered this result. operation_id remains the identity of
+            the logical operation across retries.
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S2-LDG
+        message_type:
+          type: string
+          const: ReverseTransferResult.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: Echo the triggering logical command operation_id unchanged. Never generate a new operation_id
+            in S2.
+        outcome:
+          type: string
+          enum:
+          - APPLIED
+          - REJECTED
+          - UNKNOWN
+          - PENDING
+          description: Handling outcome of the corresponding ReverseTransfer command, NOT overall settlement status.
+            APPLIED means durable local effect (or completed inquiry); PENDING/UNKNOWN must not be treated as success.
+        data:
+          $ref: '#/components/schemas/ReverseTransferResultData'
+        error:
+          $ref: '#/components/schemas/OperationError'
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - causation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - outcome
+      allOf:
+      - if:
+          properties:
+            outcome:
+              const: APPLIED
+          required:
+          - outcome
+        then:
+          required:
+          - data
+          not:
+            required:
+            - error
+      - if:
+          properties:
+            outcome:
+              enum:
+              - REJECTED
+              - UNKNOWN
+          required:
+          - outcome
+        then:
+          required:
+          - error
+          not:
+            required:
+            - data
+      - if:
+          properties:
+            outcome:
+              const: PENDING
+          required:
+          - outcome
+        then:
+          not:
+            anyOf:
+            - required:
+              - data
+            - required:
+              - error
+      description: Only valid reply to ReverseTransfer. Echo transaction_id/correlation_id/operation_id; causation_id
+        is the triggering command message_id. Success data shape is explicitly defined. These equality checks and
+        dispatch by operation_id require application validation.
+    InquireLedgerOperation:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: Banking transfer UUID assigned and persisted by S3 before the first command; identical across
+            all steps and results. NOT a Kafka-generated ID, broker offset, producer ID, or Kafka transactional.id.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S3-PAY
+        message_type:
+          type: string
+          const: InquireLedgerOperation.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: 'S3-assigned UUID of ONE logical command/step, also its application idempotency key. New
+            step: new UUID. Retry or republish of this step: same UUID and same semantic inputs. Inquiry operation_id
+            identifies this query, not the queried mutation.'
+        data:
+          type: object
+          additionalProperties: false
+          properties: {}
+          description: Intentionally empty. The complete business input is payload.transaction_id, matching the
+            REST request. S2 resolves its own stored hold/journal by this UUID. Do not resend amount/account or
+            silently select another transfer.
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - data
+      description: Proposed InquireLedgerOperation command. Deduplicate by authenticated S3 principal + operation_id;
+        type, transaction_id and canonical business data are bound to the key. See x-contract-rules. New intentional
+        poll uses a new operation_id; retries of that poll retain it. Do not cache the first poll forever by transaction_id.
+      x-rest-mapping:
+        path: /api/v1/ldg/inquiry
+        request-field-locations:
+          transaction_id: payload.transaction_id
+        success-http-equivalent: 200
+    InquireLedgerOperationResult:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: UUID for this message. Broker redelivery/outbox replay of the same stored message preserves
+            it. A newly constructed retry message may use a new message_id while preserving operation_id.
+        schema_version:
+          type: string
+          const: '3.0'
+        transaction_id:
+          type: string
+          format: uuid
+          description: Banking transfer UUID assigned and persisted by S3 before the first command; identical across
+            all steps and results. NOT a Kafka-generated ID, broker offset, producer ID, or Kafka transactional.id.
+        correlation_id:
+          type: string
+          format: uuid
+        causation_id:
+          type: string
+          format: uuid
+          description: message_id of the command that triggered this result. operation_id remains the identity of
+            the logical operation across retries.
+        occurred_at:
+          type: string
+          format: date-time
+          description: Message creation time at producer, expressed in UTC with Z; not processing time or an ordering
+            guarantee.
+          pattern: Z$
+        producer:
+          type: string
+          minLength: 1
+          const: S2-LDG
+        message_type:
+          type: string
+          const: InquireLedgerOperationResult.v3
+        operation_id:
+          type: string
+          format: uuid
+          description: Echo the triggering logical command operation_id unchanged. Never generate a new operation_id
+            in S2.
+        outcome:
+          type: string
+          enum:
+          - APPLIED
+          - REJECTED
+          - UNKNOWN
+          - PENDING
+          description: Handling outcome of the corresponding InquireLedgerOperation command, NOT overall settlement
+            status. APPLIED means durable local effect (or completed inquiry); PENDING/UNKNOWN must not be treated
+            as success.
+        data:
+          $ref: '#/components/schemas/LedgerInquiryData'
+        error:
+          $ref: '#/components/schemas/OperationError'
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - causation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - outcome
+      allOf:
+      - if:
+          properties:
+            outcome:
+              const: APPLIED
+          required:
+          - outcome
+        then:
+          required:
+          - data
+          not:
+            required:
+            - error
+      - if:
+          properties:
+            outcome:
+              enum:
+              - REJECTED
+              - UNKNOWN
+          required:
+          - outcome
+        then:
+          required:
+          - error
+          not:
+            required:
+            - data
+      - if:
+          properties:
+            outcome:
+              const: PENDING
+          required:
+          - outcome
+        then:
+          not:
+            anyOf:
+            - required:
+              - data
+            - required:
+              - error
+      description: Only valid reply to InquireLedgerOperation. Echo transaction_id/correlation_id/operation_id;
+        causation_id is the triggering command message_id. Success data shape is explicitly defined. These equality
+        checks and dispatch by operation_id require application validation.
+x-contract-rules:
+  perspective: Actions are from S3 perspective. S2 reverses command send to receive and result receive to send,
+    preserving addresses and schemas. AsyncAPI operation.reply describes allowed replies, not an automatic RPC server
+    or generated implementation.
+  identity: S3 persists transaction_id for the banking transfer. Kafka offsets, transactional.id and producer IDs
+    are transport concepts, not this business UUID. All steps share transaction_id; each distinct step has a distinct
+    operation_id. Command/result messages each have a message_id. correlation_id traces the workflow; causation_id
+    links the result to its triggering command.
+  idempotency: operation_id IS the internal idempotency key, so a second idempotency_key is intentionally omitted.
+    Scope = authenticated producer principal + operation_id across command types. Persist binding to command type
+    + transaction_id + normalized semantic data; reject reuse with changed inputs using IDEMPOTENCY_KEY_REUSED.
+    Broker redelivery/outbox replay preserves message_id; a new retry publication may use a new message_id but must
+    preserve operation_id. Do not include timestamps/message IDs in the business fingerprint. Do not equate transaction_id
+    with a step idempotency key.
+  idempotency-implementation: S2 must atomically persist dedup binding, business mutation and durable result/outbox
+    in its own database. Concurrent duplicates must serialize. Persist success and final rejection; duplicates return
+    the stored outcome, not a second money movement. Authentication/authorization is checked even for a duplicate.
+    A replay response uses the current triggering command message_id as causation_id, same operation_id, with its
+    own persisted outbox/message identity. Duplicate delivery of the same stored response keeps its message_id.
+    Retention must cover all permitted retries/replays and financial audit; do not expire keys while old commands
+    remain replayable. Kafka producer idempotence/transactions alone do not deduplicate external DB effects.
+  http-key: External HTTP Idempotency-Key remains as required by GEN-07; S3 persists its mapping to transaction_id
+    and per-step operation_id values. Do not use the same external key as every internal step key. Repeated HTTP
+    key + changed body returns IDEMPOTENCY_KEY_REUSED.
+  empty-data: 'Capture/Release/Reverse/Inquiry require data: {} because transaction_id already exists in the envelope,
+    exactly covering their api.txt request. No duplicate data.transaction_id, amount, account IDs, hold ID or ledger
+    ID is required. This assumes a unique canonical S2 target per transfer; if S2 permits multiple holds/postings
+    per transfer, a new agreed target identifier contract is required.'
+  account-identifiers: As previously clarified for S2, src_account_id/dest_account_id are decimal account NUMBER
+    strings, NOT UUIDs or IBANs. This differs from S1 canonical UUID account IDs. S3 must retain both number and
+    ID; never forward S1 UUID blindly into S2 number fields. Names retained to match api.txt.
+  responses: Each command has one dedicated message_type and success data schema, explicitly selected by operation.reply.messages.
+    Shared reply topic is deliberate and valid. S3 additionally checks expected command type by operation_id and
+    transaction_id/correlation_id/causation_id linkage. A valid but unexpected typed result must not advance the
+    workflow.
+  outcomes: 'APPLIED: data required, error forbidden. REJECTED/UNKNOWN: error required, data forbidden. PENDING:
+    neither data nor error. REJECTED means definitively no new local effect from this command; UNKNOWN means effect
+    is not known. PENDING is nonterminal; provider must durably complete/recover and publish final result, or S3
+    must inquire. Timeout is not rejection.'
+  financial-state: 'S2 alone validates preconditions atomically: Hold changes available, not book balance; internal
+    transfer writes balanced immutable debit/credit entries; Capture posts an active hold exactly once; Release
+    frees an active hold without money movement; Reverse creates balanced compensating entries referencing original
+    postings, never edits/deletes originals. No double spend. Capture vs Release race and repeating a financial
+    step under another operation_id must also be guarded by transfer/hold/journal state and uniqueness, not just
+    dedup.'
+  ordering: S3 waits for the matching durable result before dependent steps. Kafka gives no ordering across topics.
+    S2 validates state/version under a DB lock or equivalent concurrency control. Unknown external settlement must
+    not cause blind release/reversal. S3 owns saga orchestration; S2 reports only local ledger effects.
+  inquiry: operation_id identifies this query. Target is transaction_id. A fresh intentional poll gets a new operation_id
+    and a fresh authoritative snapshot. Query retries may return its stored snapshot. state is proposed local ledger
+    state, not S3 status. NOT_STARTED/NOT_FOUND must never be inferred just from a missing result, offset lag or
+    timeout; pending/in-flight commands may still execute. Do not issue a new financial operation merely because
+    inquiry says NOT_STARTED without coordinating cancellation/state guards.
+  errors: OperationError is an application result, not broker error. problem.status is HTTP-equivalent classification;
+    Kafka itself has no 400/401/403/etc response message. Base project codes and documented S2 extensions use one
+    error schema. Broker auth/ACL/record-size failures may prevent delivery and produce no result. Runtime must
+    enforce error.code=problem.code and matching correlation_id.
+  security: Actual broker addresses, TLS/SASL, ACLs and S2 authorization require agreement. producer in payload
+    is not authentication. Keep credentials out of payloads/logs/examples; configure secrets via environment. This
+    revision does not assume the S1 delegated token header is also valid for S2.
+  compatibility: Breaking proposed v3 replaces the earlier v2 shape; command/reply topic suffix v3, schema_version
+    3.0, message types v3. Do not mix with v2 consumers. Coordinate provider approval, provisioning, ACLs, consumers,
+    rollout and retirement; never run both generations for the same financial workflow without shared dedup/state
+    protection.
+  approval: api.txt specifies request fields and HTTP 201/200/400 only. Typed success status fields and LedgerInquiryData
+    state model are proposed additions, not copied from a provider contract. Additional currency=IRR carries GEN-03.
+    S2 must approve body/state model, single-target assumption, idempotency, authentication and Kafka support before
+    this becomes executable. No code, broker, api.txt or master asyncAPI file is modified.

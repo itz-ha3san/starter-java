@@ -1,0 +1,170 @@
+{
+  "version": "1",
+  "name": "LabBank S3 Payment",
+  "type": "collection",
+  "ignore": [],
+  "folders": [],
+  "requests": [
+    {
+      "name": "Health",
+      "method": "GET",
+      "url": "http://localhost:8083/health",
+      "headers": [],
+      "body": null,
+      "tests": []
+    },
+    {
+      "name": "Ready (DB + Kafka)",
+      "method": "GET",
+      "url": "http://localhost:8083/ready",
+      "headers": [],
+      "body": null,
+      "tests": []
+    },
+    {
+      "name": "Create Internal Transfer (201)",
+      "method": "POST",
+      "url": "http://localhost:8083/api/v1/transfers",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Idempotency-Key", "value": "bruno-internal-{{$timestamp}}" },
+        { "name": "X-Correlation-ID", "value": "{{$uuid}}" }
+      ],
+      "body": {
+        "mode": "json",
+        "json": {
+          "source_account_number": "001200456789",
+          "dest_account_number": "001200987654",
+          "amount": 2500000,
+          "currency": "IRR",
+          "description": "Lunch split"
+        }
+      },
+      "tests": [
+        { "type": "assert-response-status", "value": "201" }
+      ]
+    },
+    {
+      "name": "Create External Transfer (201)",
+      "method": "POST",
+      "url": "http://localhost:8083/api/v1/transfers",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Idempotency-Key", "value": "bruno-external-{{$timestamp}}" },
+        { "name": "X-Correlation-ID", "value": "{{$uuid}}" }
+      ],
+      "body": {
+        "mode": "json",
+        "json": {
+          "source_account_number": "001200456789",
+          "dest_iban": "IR430120000000000000000001",
+          "amount": 5000000,
+          "currency": "IRR",
+          "description": "Rent payment"
+        }
+      },
+      "tests": [
+        { "type": "assert-response-status", "value": "201" }
+      ]
+    },
+    {
+      "name": "Create Transfer — Validation Error (400)",
+      "method": "POST",
+      "url": "http://localhost:8083/api/v1/transfers",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Idempotency-Key", "value": "bruno-bad-{{$timestamp}}" },
+        { "name": "X-Correlation-ID", "value": "{{$uuid}}" }
+      ],
+      "body": {
+        "mode": "json",
+        "json": {
+          "source_account_number": "001200456789",
+          "amount": 0,
+          "currency": "IRR"
+        }
+      },
+      "tests": [
+        { "type": "assert-response-status", "value": "400" }
+      ]
+    },
+    {
+      "name": "Create Transfer — Idempotency Reuse (409)",
+      "method": "POST",
+      "url": "http://localhost:8083/api/v1/transfers",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Idempotency-Key", "value": "bruno-reuse-fixed-key" },
+        { "name": "X-Correlation-ID", "value": "{{$uuid}}" }
+      ],
+      "body": {
+        "mode": "json",
+        "json": {
+          "source_account_number": "001200456789",
+          "dest_account_number": "001200987654",
+          "amount": 100000,
+          "currency": "IRR"
+        }
+      },
+      "tests": []
+    },
+    {
+      "name": "Create Transfer — Reuse Same Key Different Body (409)",
+      "method": "POST",
+      "url": "http://localhost:8083/api/v1/transfers",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Idempotency-Key", "value": "bruno-reuse-fixed-key" },
+        { "name": "X-Correlation-ID", "value": "{{$uuid}}" }
+      ],
+      "body": {
+        "mode": "json",
+        "json": {
+          "source_account_number": "001200456789",
+          "dest_account_number": "001200987654",
+          "amount": 9999999,
+          "currency": "IRR"
+        }
+      },
+      "tests": [
+        { "type": "assert-response-status", "value": "409" }
+      ]
+    },
+    {
+      "name": "Get Transfer by ID (200)",
+      "method": "GET",
+      "url": "http://localhost:8083/api/v1/transfers/0192a7e4-6b1d-7c3e-9a41-2f5d8e0b7c11",
+      "headers": [
+        { "name": "X-Correlation-ID", "value": "{{$uuid}}" }
+      ],
+      "body": null,
+      "tests": [
+        { "type": "assert-response-status", "value": "200" }
+      ]
+    },
+    {
+      "name": "Get Transfer — Not Found (404)",
+      "method": "GET",
+      "url": "http://localhost:8083/api/v1/transfers/00000000-0000-0000-0000-000000000000",
+      "headers": [
+        { "name": "X-Correlation-ID", "value": "{{$uuid}}" }
+      ],
+      "body": null,
+      "tests": [
+        { "type": "assert-response-status", "value": "404" }
+      ]
+    },
+    {
+      "name": "Get Transfer Events (200, paginated)",
+      "method": "GET",
+      "url": "http://localhost:8083/api/v1/transfers/0192a7e4-6b1d-7c3e-9a41-2f5d8e0b7c11/events?limit=10",
+      "headers": [
+        { "name": "X-Correlation-ID", "value": "{{$uuid}}" }
+      ],
+      "body": null,
+      "tests": [
+        { "type": "assert-response-status", "value": "200" }
+      ]
+    }
+  ]
+}
