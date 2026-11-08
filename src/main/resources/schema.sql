@@ -1,0 +1,1 @@
+-- Database schema is managed exclusively by Flyway migrations in db/migration.

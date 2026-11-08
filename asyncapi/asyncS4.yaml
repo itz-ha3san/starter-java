@@ -1,0 +1,476 @@
+asyncapi: 3.0.0
+info:
+  title: LabBank S3 ↔ S4 — risk assessment request/reply
+  version: 1.0.0
+  description: >-
+    S3 perspective. Final v1.0 contract for the Session 04 ring Consumer side.
+    S3 (Payment Orchestration) asks S4 (Risk & Fraud) to assess a transfer
+    before any money moves. S3 produces the AssessRisk command; S4 produces
+    exactly one AssessmentResult reply on the shared result topic. This is the
+    Kafka replacement for the REST endpoint POST /api/v1/rsk/check_risk listed
+    in api.txt. Baseline fields (src_account_id, dest_account_id,
+    transaction_id, amount, additional_data, state) come from api.txt; the
+    envelope, typed error model, decision enum and reply mapping are S3/S4
+    agreement for v1.0. Professor-approved Kafka-over-REST substitution is
+    documented in ADR-0001.
+defaultContentType: application/json
+servers:
+  local:
+    host: localhost:9092
+    protocol: kafka
+    description: >-
+      Local-development example only. Production addresses and SASL/TLS policy
+      require agreement.
+channels:
+  sendAssessRisk:
+    address: lab.s3.s4.command.risk.assess.v1
+    messages:
+      AssessRisk:
+        $ref: '#/components/messages/AssessRisk'
+    description: >-
+      S3 produces; S4 consumes. UTF-8 Kafka record key = payload.transaction_id;
+      receiver validates equality with payload.transaction_id. Ordering is per
+      partition within this topic only, never across topics. ACL permits S3
+      producer and S4 consumer only.
+  receiveS4Result:
+    address: lab.s4.s3.event.operation-result.v1
+    messages:
+      AssessmentResult:
+        $ref: '#/components/messages/AssessmentResult'
+    description: >-
+      S4 produces; S3 consumes. UTF-8 key = transaction_id. causation_id
+      identifies the triggering command message. Duplicate result delivery is
+      possible; S3 deduplicates message_id and applies state transitions
+      idempotently. Replies may be delayed or absent after transport failure;
+      S3 must time out and treat absence as MANUAL_REVIEW.
+operations:
+  sendAssessRisk:
+    action: send
+    channel:
+      $ref: '#/channels/sendAssessRisk'
+    messages:
+    - $ref: '#/channels/sendAssessRisk/messages/AssessRisk'
+    reply:
+      channel:
+        $ref: '#/channels/receiveS4Result'
+      messages:
+      - $ref: '#/channels/receiveS4Result/messages/AssessmentResult'
+    summary: AssessRisk → AssessmentResult
+components:
+  messages:
+    AssessRisk:
+      name: AssessRisk
+      title: AssessRisk command (v1.0)
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/AssessRisk'
+      examples:
+      - name: internal-transfer
+        summary: Typical internal transfer risk check.
+        payload:
+          message_id: a1b2c3d4-0001-4000-8000-000000000001
+          schema_version: '1.0'
+          transaction_id: 2c4b5314-a624-4a95-a103-b12362e74073
+          correlation_id: 28759054-eb04-42c9-84ba-1d9d78872837
+          occurred_at: '2026-11-01T08:00:00Z'
+          producer: S3-PAY
+          message_type: AssessRisk.v1
+          operation_id: f1000001-0000-4000-8000-000000000001
+          data:
+            src_account_id: 515a888a-c8e9-4750-9621-273849409a44
+            dest_account_id: 7e9a62d2-77b3-4bf8-a19c-de2c51effcab
+            amount: 2500000
+            currency: IRR
+            additional_data:
+              transfer_type: INTERNAL
+              channel: WEB
+      - name: external-transfer
+        summary: External transfer with IBAN hint in additional_data.
+        payload:
+          message_id: a1b2c3d4-0001-4000-8000-000000000002
+          schema_version: '1.0'
+          transaction_id: 3d5c6425-b735-5b96-b214-c23473e85184
+          correlation_id: 3986a165-fc15-53da-95cb-2e0e899f83948
+          occurred_at: '2026-11-01T08:05:00Z'
+          producer: S3-PAY
+          message_type: AssessRisk.v1
+          operation_id: f1000002-0000-4000-8000-000000000002
+          data:
+            src_account_id: 515a888a-c8e9-4750-9621-273849409a44
+            dest_account_id: 7e9a62d2-77b3-4bf8-a19c-de2c51effcab
+            amount: 2500000
+            currency: IRR
+            additional_data:
+              transfer_type: EXTERNAL
+              dest_iban: IR430120000000000000000001
+              channel: WEB
+    AssessmentResult:
+      name: AssessmentResult
+      title: AssessmentResult reply (v1.0)
+      contentType: application/json
+      correlationId:
+        location: $message.payload#/correlation_id
+      payload:
+        $ref: '#/components/schemas/AssessmentResult'
+      examples:
+      - name: approved
+        summary: Risk check passed; S3 may proceed.
+        payload:
+          message_id: b2c3d4e5-0001-4000-8000-000000000001
+          schema_version: '1.0'
+          transaction_id: 2c4b5314-a624-4a95-a103-b12362e74073
+          correlation_id: 28759054-eb04-42c9-84ba-1d9d78872837
+          causation_id: a1b2c3d4-0001-4000-8000-000000000001
+          occurred_at: '2026-11-01T08:00:01Z'
+          producer: S4-RSK
+          message_type: AssessmentResult.v1
+          operation_id: f1000001-0000-4000-8000-000000000001
+          outcome: APPLIED
+          data:
+            decision: APPROVED
+            risk_score: 12
+            rules_evaluated:
+            - DAILY_LIMIT_OK
+            - VELOCITY_OK
+            - NOT_BLOCKLISTED
+            assessed_at: '2026-11-01T08:00:01Z'
+      - name: rejected
+        summary: Risk check failed; S3 must reject the transfer.
+        payload:
+          message_id: b2c3d4e5-0001-4000-8000-000000000002
+          schema_version: '1.0'
+          transaction_id: 3d5c6425-b735-5b96-b214-c23473e85184
+          correlation_id: 3986a165-fc15-53da-95cb-2e0e899f83948
+          causation_id: a1b2c3d4-0001-4000-8000-000000000002
+          occurred_at: '2026-11-01T08:05:01Z'
+          producer: S4-RSK
+          message_type: AssessmentResult.v1
+          operation_id: f1000002-0000-4000-8000-000000000002
+          outcome: APPLIED
+          data:
+            decision: REJECTED
+            risk_score: 87
+            rules_evaluated:
+            - BLOCKLISTED_DESTINATION
+            - VELOCITY_BURST
+            assessed_at: '2026-11-01T08:05:01Z'
+      - name: manual-review
+        summary: Risk inconclusive; S3 must hold for human review.
+        payload:
+          message_id: b2c3d4e5-0001-4000-8000-000000000003
+          schema_version: '1.0'
+          transaction_id: 2c4b5314-a624-4a95-a103-b12362e74073
+          correlation_id: 28759054-eb04-42c9-84ba-1d9d78872837
+          causation_id: a1b2c3d4-0001-4000-8000-000000000001
+          occurred_at: '2026-11-01T08:00:02Z'
+          producer: S4-RSK
+          message_type: AssessmentResult.v1
+          operation_id: f1000001-0000-4000-8000-000000000001
+          outcome: APPLIED
+          data:
+            decision: MANUAL_REVIEW
+            risk_score: 55
+            rules_evaluated:
+            - VELOCITY_BORDERLINE
+            assessed_at: '2026-11-01T08:00:02Z'
+      - name: validation-error
+        summary: S4 rejected the command payload; not a risk decision.
+        payload:
+          message_id: b2c3d4e5-0001-4000-8000-000000000004
+          schema_version: '1.0'
+          transaction_id: 2c4b5314-a624-4a95-a103-b12362e74073
+          correlation_id: 28759054-eb04-42c9-84ba-1d9d78872837
+          causation_id: a1b2c3d4-0001-4000-8000-000000000001
+          occurred_at: '2026-11-01T08:00:00Z'
+          producer: S4-RSK
+          message_type: AssessmentResult.v1
+          operation_id: f1000001-0000-4000-8000-000000000001
+          outcome: REJECTED
+          error:
+            code: VALIDATION_ERROR
+            retryable: false
+            public_message: amount must be a positive integer.
+            problem:
+              type: https://errors.labbank.example/validation-error
+              title: Invalid request
+              status: 400
+              code: VALIDATION_ERROR
+              detail: amount must be a positive integer.
+              correlation_id: 28759054-eb04-42c9-84ba-1d9d78872837
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      description: Canonical UUID v7 or v4 string.
+    Problem:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+          minLength: 1
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        code:
+          type: string
+          minLength: 1
+          description: >-
+            Stable machine-readable code. Base examples: VALIDATION_ERROR,
+            UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT,
+            IDEMPOTENCY_KEY_REUSED, SERVICE_UNAVAILABLE, UPSTREAM_TIMEOUT.
+        detail:
+          type: string
+          minLength: 1
+        correlation_id:
+          type: string
+          format: uuid
+      required:
+      - type
+      - title
+      - status
+      - code
+      - detail
+      - correlation_id
+    OperationError:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          minLength: 1
+        retryable:
+          type: boolean
+        public_message:
+          type: string
+          minLength: 1
+        problem:
+          $ref: '#/components/schemas/Problem'
+      required:
+      - code
+      - retryable
+      - public_message
+      - problem
+      description: >-
+        Application handling error, not a Kafka broker status. code must equal
+        problem.code; problem.correlation_id must equal envelope.correlation_id.
+    Money:
+      type: object
+      additionalProperties: false
+      properties:
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 9223372036854775807
+          description: Positive integer Iranian rials. Never float/double.
+        currency:
+          type: string
+          const: IRR
+      required:
+      - amount
+      - currency
+    AdditionalData:
+      type: object
+      additionalProperties: true
+      description: >-
+        Free-form context for risk evaluation. S4 must ignore unknown keys.
+        Suggested keys: transfer_type (INTERNAL|EXTERNAL), channel (WEB|ATM|
+        BRANCH|API), dest_iban (for EXTERNAL only), device_id, ip_address.
+      properties:
+        transfer_type:
+          type: string
+          enum:
+          - INTERNAL
+          - EXTERNAL
+        channel:
+          type: string
+          enum:
+          - WEB
+          - ATM
+          - BRANCH
+          - API
+        dest_iban:
+          type: string
+          pattern: ^IR[0-9]{24}$
+    AssessRisk:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          $ref: '#/components/schemas/Uuid'
+        schema_version:
+          type: string
+          const: '1.0'
+        transaction_id:
+          $ref: '#/components/schemas/Uuid'
+          description: S3-assigned banking transfer UUID, constant across the whole flow.
+        correlation_id:
+          $ref: '#/components/schemas/Uuid'
+        causation_id:
+          $ref: '#/components/schemas/Uuid'
+          description: Optional; set when this assessment is a retry of a previous command.
+        occurred_at:
+          type: string
+          format: date-time
+          pattern: Z$
+          description: UTC message creation time at producer.
+        producer:
+          type: string
+          const: S3-PAY
+        message_type:
+          type: string
+          const: AssessRisk.v1
+        operation_id:
+          $ref: '#/components/schemas/Uuid'
+          description: >-
+            S3-assigned logical command UUID and idempotency key. Same command
+            retry retains this UUID and business inputs.
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            src_account_id:
+              $ref: '#/components/schemas/Uuid'
+            dest_account_id:
+              $ref: '#/components/schemas/Uuid'
+            amount:
+              type: integer
+              format: int64
+              minimum: 1
+              maximum: 9223372036854775807
+              description: Positive integer Iranian rials.
+            currency:
+              type: string
+              const: IRR
+            additional_data:
+              $ref: '#/components/schemas/AdditionalData'
+          required:
+          - src_account_id
+          - dest_account_id
+          - amount
+          - currency
+          - additional_data
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - data
+      description: >-
+        Ask S4 to assess a transfer before any money moves. Replaces the REST
+        endpoint POST /api/v1/rsk/check_risk. No money is debited by sending
+        this command; S3 must wait for the reply before proceeding.
+      x-rest-mapping:
+        path: /api/v1/rsk/check_risk
+        method: POST
+        change: >-
+          Kafka replacement for REST, per ADR-0001. Field names preserved from
+          api.txt (src_account_id, dest_account_id, transaction_id, amount,
+          additional_data). state in api.txt is expanded to the typed decision
+          enum below.
+    AssessmentResult:
+      type: object
+      additionalProperties: false
+      properties:
+        message_id:
+          $ref: '#/components/schemas/Uuid'
+        schema_version:
+          type: string
+          const: '1.0'
+        transaction_id:
+          $ref: '#/components/schemas/Uuid'
+        correlation_id:
+          $ref: '#/components/schemas/Uuid'
+        causation_id:
+          $ref: '#/components/schemas/Uuid'
+          description: message_id of the command that triggered this result.
+        occurred_at:
+          type: string
+          format: date-time
+          pattern: Z$
+        producer:
+          type: string
+          const: S4-RSK
+        message_type:
+          type: string
+          const: AssessmentResult.v1
+        operation_id:
+          $ref: '#/components/schemas/Uuid'
+          description: Same operation_id as the triggering AssessRisk command.
+        outcome:
+          type: string
+          enum:
+          - APPLIED
+          - REJECTED
+          - UNKNOWN
+          description: >-
+            APPLIED: S4 evaluated the risk and produced a decision.
+            REJECTED: S4 could not evaluate (e.g. bad payload); see error.
+            UNKNOWN: transport/handling ambiguity; S3 must retry or hold.
+        data:
+          type: object
+          additionalProperties: false
+          properties:
+            decision:
+              type: string
+              enum:
+              - APPROVED
+              - REJECTED
+              - MANUAL_REVIEW
+              description: >-
+                APPROVED: S3 may proceed with the transfer. REJECTED: S3 must
+                reject the transfer and stop. MANUAL_REVIEW: S3 must hold the
+                transfer for human review; do not debit.
+            risk_score:
+              type: integer
+              minimum: 0
+              maximum: 100
+              description: Normalized risk score 0-100; higher is riskier.
+            rules_evaluated:
+              type: array
+              items:
+                type: string
+                minLength: 1
+              description: Names of the risk rules that fired or were checked.
+            assessed_at:
+              type: string
+              format: date-time
+              pattern: Z$
+              description: UTC time at which S4 recorded its decision.
+          required:
+          - decision
+          - risk_score
+          - rules_evaluated
+          - assessed_at
+        error:
+          $ref: '#/components/schemas/OperationError'
+      required:
+      - message_id
+      - schema_version
+      - transaction_id
+      - correlation_id
+      - occurred_at
+      - producer
+      - message_type
+      - operation_id
+      - outcome
+      description: >-
+        Exactly one reply per AssessRisk command. data is present iff outcome
+        is APPLIED. error is present iff outcome is REJECTED. For outcome
+        UNKNOWN neither data nor error may be present; S3 must time out and
+        treat as MANUAL_REVIEW.
+      x-outcome-rules:
+        APPLIED: data required, error absent
+        REJECTED: error required, data absent
+        UNKNOWN: both data and error absent
