@@ -5,14 +5,17 @@ WORKDIR /app
 # نصب dependencyها (کش‌شدنی)
 COPY package*.json ./
 # استفاده از میرور npm داخلی (رانفلر)
+# نکته: از npm install استفاده می‌کنیم (نه npm ci) تا با نبود یا قدیمی بودن
+# package-lock.json هم سازگار باشد. npm ci نیاز به lockfile دقیق دارد.
+# --legacy-peer-deps برای جلوگیری از خطای peer dependency در برخی پکیج‌ها
 RUN npm config set registry https://mirror-npm.runflare.com && \
     npm config set strict-ssl false && \
-    npm ci
+    npm install --no-audit --no-fund --legacy-peer-deps
 # کپی سورس و بیلد
 COPY . .
-# اگر URL بک‌اند را در build لازم داری، اینجا ARG/ENV بده:
-# ARG VITE_API_URL=/api
-# ENV VITE_API_URL=$VITE_API_URL
+# تولید TypeScript types از OpenAPI spec (اگر هنوز تولید نشده)
+RUN npm run gen:api || true
+# بیلد تولیدی
 RUN npm run build
 
 # ===== Serve stage =====
