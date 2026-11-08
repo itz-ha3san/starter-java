@@ -1,432 +1,260 @@
 openapi: 3.1.0
 info:
-  title: LabBank S3 Payment — Frontend API
+  title: S1 (Customer & Account) - Transfer account check
   version: 1.0.0
-  description: >-
-    REST API that the S3 (Payment Orchestration) backend exposes to its own
-    frontend. This is NOT the inter-service contract; inter-service
-    communication uses Kafka and is documented in asyncapi/*.yaml. The frontend
-    calls these endpoints; S3 then orchestrates the transfer via Kafka commands
-    to S1, S2, S4 and S5. Professor-approved Kafka-over-REST substitution for
-    inter-service traffic is documented in ADR-0001.
-  contact:
-    name: LabBank S3 Team
+  description: |
+    **Provider:** S1 (ACC1-S, port 8081). **Consumer:** S3 (Payment Orchestration).
+
+    Before moving money, S3 sends the source and destination account numbers (IBAN / Sheba) and the
+    customer's access token. S1 answers whether the accounts exist and may be used.
+
+    Order of the checks (important):
+    1. Source account does not exist -> `404 NOT_FOUND`, nothing else is checked.
+    2. Token is not valid for the source account -> `401 UNAUTHORIZED`.
+    3. Destination account does not exist -> `200`, `destination.found = false`; the source info is still returned.
+    4. Destination exists -> `200`, `destination.found = true` with the destination status and id.
+
+    `active` is `true` only when the account status is ACTIVE and its owner is ACTIVE.
+    The source `limit` is the transfer limit of the source account (GEN-03 money object, IRR).
+
+    Assumptions to confirm with S3: account numbers are Sheba (`IR` + 24 digits); the token is the customer
+    access token issued by S1 login, and "valid" means: signature and expiry are fine AND its user owns the source account.
 servers:
-  - url: http://localhost:8083/api/v1
-    description: Local development
+  - url: http://localhost:8081
+    description: S1 on a developer machine
+tags:
+  - name: transfer-check
+    description: Pre-check of the accounts of a transfer
 paths:
-  /health:
-    get:
-      operationId: getHealth
-      summary: Liveness probe
-      tags: [health]
-      responses:
-        '200':
-          description: Service is alive
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Health'
-        '429':
-          description: Too many health-check requests
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-  /ready:
-    get:
-      operationId: getReady
-      summary: Readiness probe (checks DB + Kafka)
-      tags: [health]
-      responses:
-        '200':
-          description: All dependencies ready
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Health'
-        '429':
-          description: Too many health-check requests
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-  /transfers:
+  /api/v1/accounts/transfer-check:
     post:
-      operationId: createTransfer
-      summary: Create a new transfer request
-      description: >-
-        Accepts a transfer request, validates it, persists it to PostgreSQL,
-        and starts the Kafka-based orchestration (risk check → hold funds →
-        execute). The Idempotency-Key header is required for exactly-once
-        semantic at the API boundary.
-      tags: [transfers]
+      tags: [transfer-check]
+      operationId: checkTransferAccounts
+      summary: Check the source and destination account of a transfer
+      description: Read-only check (nothing is changed in S1), so no Idempotency-Key is needed.
+      security:
+        - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
         - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateTransferRequest'
-            examples:
-              internal:
-                summary: Internal transfer between two LabBank accounts
-                value:
-                  source_account_number: '001200456789'
-                  dest_account_number: '001200987654'
-                  amount: 2500000
-                  currency: IRR
-                  description: Lunch split
-              external:
-                summary: External transfer to another bank via IBAN
-                value:
-                  source_account_number: '001200456789'
-                  dest_iban: IR430120000000000000000001
-                  amount: 2500000
-                  currency: IRR
-                  description: Rent payment
+              $ref: '#/components/schemas/TransferCheckRequest'
+            example:
+              source_sheba: IR120990000000000000000001
+              destination_sheba: IR330990000000000000000002
       responses:
-        '201':
-          description: Transfer created and accepted for processing
+        '200':
+          description: Source exists and the token is valid. The destination may or may not exist (see `destination.found`).
           headers:
-            Location:
-              description: URL of the created transfer resource
-              schema:
-                type: string
-                format: uri
+            X-Correlation-ID:
+              $ref: '#/components/headers/CorrelationId'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Transfer'
+                $ref: '#/components/schemas/TransferCheckResult'
+              examples:
+                destinationFound:
+                  summary: Both accounts exist
+                  value:
+                    source:
+                      account_id: 0192a7e4-6b1d-7c3e-9a41-2f5d8e0b7c11
+                      active: true
+                      limit:
+                        amount: 50000000
+                        currency: IRR
+                    destination:
+                      found: true
+                      account_id: 0192a7e5-1c2d-7a90-8b33-4d6e9f0a1b22
+                      active: true
+                destinationNotFound:
+                  summary: Destination is not a LabBank account
+                  value:
+                    source:
+                      account_id: 0192a7e4-6b1d-7c3e-9a41-2f5d8e0b7c11
+                      active: true
+                      limit:
+                        amount: 50000000
+                        currency: IRR
+                    destination:
+                      found: false
+                      account_id: null
+                      active: null
         '400':
           $ref: '#/components/responses/ValidationError'
-        '409':
-          $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/InvalidToken'
+        '404':
+          $ref: '#/components/responses/SourceNotFound'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
-  /transfers/{id}:
-    get:
-      operationId: getTransfer
-      summary: Get the current state of a transfer
-      tags: [transfers]
-      parameters:
-        - $ref: '#/components/parameters/TransferId'
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Transfer found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Transfer'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /transfers/{id}/events:
-    get:
-      operationId: getTransferEvents
-      summary: List the event history of a transfer
-      tags: [transfers]
-      parameters:
-        - $ref: '#/components/parameters/TransferId'
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/CorrelationId'
-      responses:
-        '200':
-          description: Event list with pagination cursor
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TransferEventPage'
-        '404':
-          $ref: '#/components/responses/NotFound'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Access token of the customer (issued by `POST /api/v1/auth/login`). It is read only after the
+        source account was found (see the order of the checks).
   parameters:
-    TransferId:
-      name: id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-      description: UUID of the transfer.
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: true
-      schema:
-        type: string
-        minLength: 1
-        maxLength: 255
-      description: >-
-        Client-supplied idempotency key. Repeating the same key + body returns
-        the same response. Repeating the same key with a different body returns
-        409 IDEMPOTENCY_KEY_REUSED.
     CorrelationId:
       name: X-Correlation-ID
       in: header
       required: false
+      description: Created by S1 when missing; pass it to every following call (GEN-08).
       schema:
         type: string
-        format: uuid
-      description: >-
-        Propagated correlation ID. If absent the server generates one and
-        echoes it in the response header and every log line.
-    Cursor:
-      name: cursor
-      in: query
-      required: false
+  headers:
+    CorrelationId:
+      description: The correlation id of this request.
       schema:
         type: string
-      description: Opaque pagination cursor from a previous response.
-    Limit:
-      name: limit
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 200
-        default: 50
-  responses:
-    ValidationError:
-      description: Input validation failed
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/Problem'
-    NotFound:
-      description: Resource not found
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/Problem'
-    Conflict:
-      description: Conflict with current resource state
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/Problem'
-    ServiceUnavailable:
-      description: A dependency is unavailable
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/Problem'
   schemas:
-    Health:
+    TransferCheckRequest:
       type: object
+      required: [source_sheba, destination_sheba]
       additionalProperties: false
       properties:
-        status:
-          type: string
-          enum: [ok]
-        dependencies:
-          type: object
-          additionalProperties:
-            type: string
-            enum: [up, down]
-      required: [status]
-    IranianIBAN:
+        source_sheba:
+          $ref: '#/components/schemas/Sheba'
+        destination_sheba:
+          $ref: '#/components/schemas/Sheba'
+    Sheba:
       type: string
-      pattern: ^IR[0-9]{24}$
-      minLength: 26
-      maxLength: 26
-      description: Iranian IBAN per GEN-13.
-    AccountNumber:
-      type: string
-      pattern: ^[0-9]{10,12}$
-      minLength: 10
-      maxLength: 12
-      description: LabBank internal account number.
-    CreateTransferRequest:
+      pattern: '^IR[0-9]{24}$'
+      description: IBAN in the Iranian format. Digits 5 to 7 are the bank code; LabBank is `099`.
+      examples:
+        - IR120990000000000000000001
+    Money:
       type: object
-      additionalProperties: false
+      required: [amount, currency]
       properties:
-        source_account_number:
-          $ref: '#/components/schemas/AccountNumber'
-        dest_account_number:
-          $ref: '#/components/schemas/AccountNumber'
-          description: Required for internal transfers. Mutually exclusive with dest_iban.
-        dest_iban:
-          $ref: '#/components/schemas/IranianIBAN'
-          description: Required for external transfers. Mutually exclusive with dest_account_number.
         amount:
           type: integer
           format: int64
-          minimum: 1
-          maximum: 9223372036854775807
+          minimum: 0
+          description: Amount in Rial. Never a float (GEN-03).
         currency:
           type: string
-          const: IRR
-        description:
-          type: string
-          maxLength: 256
-      required:
-        - source_account_number
-        - amount
-        - currency
-      oneOf:
-        - required: [dest_account_number]
-        - required: [dest_iban]
-    TransferStatus:
-      type: string
-      enum:
-        - PENDING
-        - RISK_CHECKING
-        - RISK_REJECTED
-        - RISK_MANUAL_REVIEW
-        - HOLDING
-        - HOLD_FAILED
-        - EXECUTING
-        - SETTLED
-        - FAILED
-        - REVERSED
-      description: >-
-        PENDING: just created. RISK_CHECKING: AssessRisk sent to S4.
-        RISK_REJECTED: S4 said REJECTED. RISK_MANUAL_REVIEW: S4 said
-        MANUAL_REVIEW or timed out. HOLDING: HoldFunds sent to S2. HOLD_FAILED:
-        S2 hold failed. EXECUTING: command sent to S2 (internal) or S5
-        (external). SETTLED: success. FAILED: terminal failure. REVERSED:
-        compensating reversal applied.
-    Transfer:
+          enum: [IRR]
+    SourceAccount:
       type: object
-      additionalProperties: false
+      required: [account_id, active, limit]
       properties:
-        id:
+        account_id:
           type: string
           format: uuid
-        source_account_id:
-          type:
-            - string
-            - 'null'
-          format: uuid
-          description: Resolved by S1; null until authorization completes.
-        dest_account_id:
-          type:
-            - string
-            - 'null'
-          format: uuid
-        dest_iban:
-          $ref: '#/components/schemas/IranianIBAN'
-        amount:
-          type: integer
-          format: int64
-        currency:
-          type: string
-          const: IRR
-        status:
-          $ref: '#/components/schemas/TransferStatus'
-        is_internal:
+        active:
           type: boolean
-        description:
-          type:
-            - string
-            - 'null'
-        idempotency_key:
-          type: string
-          minLength: 1
-          maxLength: 255
-        correlation_id:
-          type: string
-          format: uuid
-        created_at:
-          type: string
-          format: date-time
-          pattern: Z$
-        updated_at:
-          type: string
-          format: date-time
-          pattern: Z$
-      required:
-        - id
-        - amount
-        - currency
-        - status
-        - is_internal
-        - created_at
-        - updated_at
-    TransferEvent:
+          description: true if the account may send money.
+        limit:
+          $ref: '#/components/schemas/Money'
+    DestinationAccount:
       type: object
-      additionalProperties: false
+      required: [found, account_id, active]
       properties:
-        id:
-          type: string
+        found:
+          type: boolean
+          description: false when the destination is not an account of LabBank.
+        account_id:
+          type: [string, 'null']
           format: uuid
-        transfer_id:
-          type: string
-          format: uuid
-        event_type:
-          type: string
-          enum:
-            - CREATED
-            - AUTHORIZATION_CHECKED
-            - RISK_ASSESSED
-            - FUNDS_HELD
-            - FUNDS_CAPTURED
-            - FUNDS_RELEASED
-            - TRANSFER_EXECUTED
-            - TRANSFER_SETTLED
-            - TRANSFER_FAILED
-            - TRANSFER_REVERSED
-        payload:
-          type: object
-          additionalProperties: true
-          description: Event-specific data.
-        occurred_at:
-          type: string
-          format: date-time
-          pattern: Z$
-      required: [id, transfer_id, event_type, occurred_at]
-    TransferEventPage:
+          description: null when `found` is false.
+        active:
+          type: [boolean, 'null']
+          description: true if the account may receive money; null when `found` is false.
+    TransferCheckResult:
       type: object
-      additionalProperties: false
+      required: [source, destination]
       properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/TransferEvent'
-        next_cursor:
-          type:
-            - string
-            - 'null'
-      required: [data]
+        source:
+          $ref: '#/components/schemas/SourceAccount'
+        destination:
+          $ref: '#/components/schemas/DestinationAccount'
     Problem:
       type: object
-      additionalProperties: false
+      description: RFC 9457 problem details (GEN-06).
+      required: [type, title, status, code, detail]
       properties:
         type:
           type: string
           format: uri
-          default: 'https://errors.labbank.example/problem'
-        instance:
-          type: string
-          format: uri-reference
-          description: Request path associated with this problem.
         title:
           type: string
         status:
           type: integer
-          minimum: 400
-          maximum: 599
         code:
           type: string
-          enum:
-            - VALIDATION_ERROR
-            - UNAUTHORIZED
-            - FORBIDDEN
-            - NOT_FOUND
-            - CONFLICT
-            - IDEMPOTENCY_KEY_REUSED
-            - SERVICE_UNAVAILABLE
-            - UPSTREAM_TIMEOUT
         detail:
           type: string
         correlation_id:
-          type: string
-          format: uuid
-      required: [type, title, status, code, detail, correlation_id]
+          type: [string, 'null']
+        errors:
+          type: array
+          description: Only for VALIDATION_ERROR.
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+  responses:
+    ValidationError:
+      description: Missing field or malformed Sheba.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://errors.labbank.example/validation-error
+            title: Validation error
+            status: 400
+            code: VALIDATION_ERROR
+            detail: Invalid or incomplete input
+            correlation_id: 0192a7e5-3b0d-7c55-9a51-0c7e2b1d8f40
+            errors:
+              - field: source_sheba
+                message: String should match pattern '^IR[0-9]{24}$'
+    InvalidToken:
+      description: The source account exists, but the token is missing, expired, forged or belongs to another user.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://errors.labbank.example/unauthorized
+            title: Unauthorized
+            status: 401
+            code: UNAUTHORIZED
+            detail: Token is not valid for the source account
+            correlation_id: 0192a7e5-3b0d-7c55-9a51-0c7e2b1d8f40
+    SourceNotFound:
+      description: No account with the source Sheba exists. Nothing else is checked.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://errors.labbank.example/not-found
+            title: Not found
+            status: 404
+            code: NOT_FOUND
+            detail: Source account not found
+            correlation_id: 0192a7e5-3b0d-7c55-9a51-0c7e2b1d8f40
+    ServiceUnavailable:
+      description: S1 can not answer now (for example its database is down).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://errors.labbank.example/service-unavailable
+            title: Service unavailable
+            status: 503
+            code: SERVICE_UNAVAILABLE
+            detail: Database is not reachable
+            correlation_id: 0192a7e5-3b0d-7c55-9a51-0c7e2b1d8f40

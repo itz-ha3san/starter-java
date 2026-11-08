@@ -1,4 +1,5 @@
 services:
+  # Main application database
   db:
     image: postgres:16-alpine
     container_name: s3-db
@@ -22,24 +23,21 @@ services:
     image: confluentinc/cp-kafka:7.7.1
     container_name: s3-kafka
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: 'broker,controller'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,PLAINTEXT:PLAINTEXT'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092'
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
-      KAFKA_LISTENERS: 'PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092'
-      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
-      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:29093"
+      KAFKA_LISTENERS: "PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
     ports:
       - "9092:9092"
     healthcheck:
@@ -56,24 +54,22 @@ services:
       kafka:
         condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
-    command: |
-      "
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s5.command.transfer.external.v3 --partitions 3 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s5.command.transfer.inquire.v3 --partitions 3 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s5.s3.event.operation-result.v3 --partitions 3 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s4.command.risk.assess.v1 --partitions 3 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s4.s3.event.operation-result.v1 --partitions 3 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s1.command.authorization.check.v2 --partitions 3 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s1.s3.event.operation-result.v2 --partitions 3 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.funds.hold.v3 --partitions 3 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.transfer.internal.v3 --partitions 3 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.funds.capture.v3 --partitions 3 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.funds.release.v3 --partitions 3 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.transfer.reverse.v3 --partitions 3 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.operation.inquire.v3 --partitions 3 --replication-factor 1
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s2.s3.event.operation-result.v3 --partitions 3 --replication-factor 1
+    command: >-
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s5.command.transfer.external.v3 --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s5.command.transfer.inquire.v3 --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s5.s3.event.operation-result.v3 --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s4.command.risk.assess.v1 --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s4.s3.event.operation-result.v1 --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s1.command.authorization.check.v2 --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s1.s3.event.operation-result.v2 --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.funds.hold.v3 --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.transfer.internal.v3 --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.funds.capture.v3 --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.funds.release.v3 --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.transfer.reverse.v3 --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.operation.inquire.v3 --partitions 3 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s2.s3.event.operation-result.v3 --partitions 3 --replication-factor 1 &&
       echo 'All LabBank S3 topics created.'
-      "
     restart: "no"
 
   app:
@@ -89,13 +85,12 @@ services:
         condition: service_completed_successfully
     environment:
       DB_HOST: db
-      DB_PORT: ${DB_PORT:-5432}
+      # Container-to-container traffic uses PostgreSQL's internal port.
+      DB_PORT: 5432
       DB_NAME: ${DB_NAME:-paymentdb}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-    # Application همیشه روی 8083 داخل container گوش می‌دهد (طبق application.properties).
-    # اگر می‌خواهید پورت host را تغییر دهید، APP_PORT را در .env تنظیم کنید.
     ports:
       - "${APP_PORT:-8083}:8083"
 
@@ -121,5 +116,28 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:80"
 
+  # Isolated PostgreSQL database used only by integration tests.
+  # Start it with: docker compose --profile test up -d db-test
+  db-test:
+    image: postgres:16-alpine
+    container_name: s3-db-test
+    profiles: ["test"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${TEST_DB_USER:-test_user}
+      POSTGRES_PASSWORD: ${TEST_DB_PASSWORD:-test_password}
+      POSTGRES_DB: ${TEST_DB_NAME:-paymentdb_test}
+    ports:
+      - "${TEST_DB_PORT:-5433}:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
 volumes:
   postgres_data:
+  postgres_test_data:
