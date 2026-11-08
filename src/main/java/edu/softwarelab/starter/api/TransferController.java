@@ -1,6 +1,7 @@
 package edu.softwarelab.starter.api;
 
 import java.net.URI;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 
@@ -140,8 +141,8 @@ public class TransferController {
                     t.riskDecision(),
                     t.riskScore(),
                     t.externalReference(),
-                    t.createdAt() == null ? null : t.createdAt().toString(),
-                    t.updatedAt() == null ? null : t.updatedAt().toString()
+                    t.createdAt() == null ? null : DateTimeFormatter.ISO_INSTANT.format(t.createdAt().toInstant()),
+                    t.updatedAt() == null ? null : DateTimeFormatter.ISO_INSTANT.format(t.updatedAt().toInstant())
             );
         }
     }

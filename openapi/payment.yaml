@@ -327,6 +327,13 @@ components:
           type:
             - string
             - 'null'
+        idempotency_key:
+          type: string
+          minLength: 1
+          maxLength: 255
+        correlation_id:
+          type: string
+          format: uuid
         created_at:
           type: string
           format: date-time
@@ -396,6 +403,10 @@ components:
           type: string
           format: uri
           default: 'https://errors.labbank.example/problem'
+        instance:
+          type: string
+          format: uri-reference
+          description: Request path associated with this problem.
         title:
           type: string
         status:
