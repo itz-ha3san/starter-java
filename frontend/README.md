@@ -73,3 +73,20 @@ export default defineConfig([
 ])
 
 ```
+
+## Component tests
+
+From the `frontend` directory, install the locked dependencies and run the component tests:
+
+```sh
+npm ci
+npm test
+```
+
+Run a single test by its title:
+
+```sh
+npm test -- -t "shows Problem Details"
+```
+
+The tests use Vitest, jsdom and React Testing Library. They render `App` and mock its API client; they do not call a backend, database, Kafka, or real network and are not end-to-end tests. The Problem Details test simulates an API rejection; it does not claim that the form validates the amount before submitting.
