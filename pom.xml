@@ -93,6 +93,14 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- HTTP stub for the S1 Consumer-side integration tests -->
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <version>3.13.1</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- General test support -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
