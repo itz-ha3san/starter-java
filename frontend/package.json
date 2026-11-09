@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "gen:api": "openapi-typescript ../openapi/payment.yaml -o src/api/schema.d.ts",
+    "gen:api": "openapi-typescript ../openapi/Payment.yaml -o src/api/schema.d.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

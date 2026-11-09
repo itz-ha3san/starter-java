@@ -101,7 +101,7 @@ services:
     depends_on:
       - app
     environment:
-      SWAGGER_JSON: /spec/payment.yaml
+      SWAGGER_JSON: /spec/Payment.yaml
     volumes:
       - ./openapi:/spec:ro
     ports:
