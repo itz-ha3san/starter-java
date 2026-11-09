@@ -32,7 +32,7 @@ class TransferApiContractTest {
 
     @BeforeAll
     static void loadContract() throws Exception {
-        Path contractPath = Path.of("openapi", "payment.yaml");
+        Path contractPath = Path.of("openapi", "Payment.yaml");
         assertTrue(Files.isRegularFile(contractPath),
                 "OpenAPI contract not found at " + contractPath.toAbsolutePath());
         try (InputStream input = Files.newInputStream(contractPath)) {

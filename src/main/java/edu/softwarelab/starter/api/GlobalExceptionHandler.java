@@ -28,7 +28,7 @@ import edu.softwarelab.starter.service.TransferService.IdempotencyKeyReusedExcep
  * detail) plus two custom properties required by the OpenAPI contract:
  * <ul>
  *   <li>{@code code} — stable machine-readable code from the enum in
- *       {@code openapi/payment.yaml} (VALIDATION_ERROR, NOT_FOUND, CONFLICT,
+ *       {@code openapi/Payment.yaml} (VALIDATION_ERROR, NOT_FOUND, CONFLICT,
  *       SERVICE_UNAVAILABLE, UPSTREAM_TIMEOUT).</li>
  *   <li>{@code correlation_id} — UUID propagated from the MDC (set by
  *       {@link CorrelationIdFilter}) so every log line and every error

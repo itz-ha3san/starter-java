@@ -87,13 +87,13 @@ npx @asyncapi/cli validate asyncapi/asyncS4.yaml
 
 | فایل | کاربرد |
 |------|--------|
-| `openapi/payment.yaml` | REST API فرانت‌اند (POST /transfers, GET /transfers/{id}, ...) |
+| `openapi/Payment.yaml` | REST API فرانت‌اند (POST /transfers, GET /transfers/{id}, ...) |
 | `redocly.yaml` | تنظیمات lint |
 
 اعتبارسنجی:
 
 ```bash
-npx @redocly/cli lint openapi/payment.yaml
+npx @redocly/cli lint openapi/Payment.yaml
 ```
 
 ## حلقه‌ی جلسه ۴
@@ -118,7 +118,7 @@ mvn test
 ```bash
 cd frontend
 npm install
-npm run gen:api    # تولید TypeScript types از openapi/payment.yaml
+npm run gen:api    # تولید TypeScript types از openapi/Payment.yaml
 npm run dev        # http://localhost:5173
 ```
 
