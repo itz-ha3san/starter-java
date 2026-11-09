@@ -34,9 +34,12 @@ import edu.softwarelab.starter.messaging.dto.ExecuteExternalTransferData;
 /**
  * Orchestrates the payment saga for the S3 service.
  *
- * <p>For this session the wired ring is S3 ↔ S4 (risk assessment) and S3 ↔ S5
- * (external transfer). The S1 (account lookup) and S2 (fund hold) rings are
- * out of scope; their fields are left null and their commands are not sent.
+ * <p>The main transfer saga currently wires S3 ↔ S4 (risk assessment) and
+ * S3 ↔ S5 (external transfer). The S1 HTTP consumer and its eligibility service
+ * are implemented and tested independently for assignment Section 8, but are
+ * not yet invoked by this method because the current S3 request contract does
+ * not provide the Sheba values and S1 customer token required by that contract.
+ * S2 (fund hold) remains out of scope; account-id fields are not fabricated.
  *
  * <p>Idempotency: the API-level idempotency key is checked first; on a replay
  * the previously-persisted Transfer is returned untouched. The Kafka
