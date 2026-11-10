@@ -1,5 +1,13 @@
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /src
+
+# Use Aliyun mirror for Maven Central.
+# Reason: from some networks (notably Iran), repo.maven.apache.org fails with
+# "Remote host terminated the handshake" / "SSL peer shut down incorrectly".
+# Aliyun mirrors Maven Central 1:1 and is reachable from those networks.
+# See .mvn-settings.xml for the mirror definition.
+COPY .mvn-settings.xml /root/.m2/settings.xml
+
 COPY pom.xml ./
 COPY src ./src
 RUN mvn -B package -DskipTests

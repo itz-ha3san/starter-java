@@ -53,23 +53,38 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-    entrypoint: ["/bin/sh", "-c"]
-    command: >-
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s5.command.transfer.external.v3 --partitions 3 --replication-factor 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s5.command.transfer.inquire.v3 --partitions 3 --replication-factor 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s5.s3.event.operation-result.v3 --partitions 3 --replication-factor 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s4.command.risk.assess.v1 --partitions 3 --replication-factor 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s4.s3.event.operation-result.v1 --partitions 3 --replication-factor 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s1.command.authorization.check.v2 --partitions 3 --replication-factor 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s1.s3.event.operation-result.v2 --partitions 3 --replication-factor 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.funds.hold.v3 --partitions 3 --replication-factor 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.transfer.internal.v3 --partitions 3 --replication-factor 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.funds.capture.v3 --partitions 3 --replication-factor 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.funds.release.v3 --partitions 3 --replication-factor 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.transfer.reverse.v3 --partitions 3 --replication-factor 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.operation.inquire.v3 --partitions 3 --replication-factor 1 &&
-      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s2.s3.event.operation-result.v3 --partitions 3 --replication-factor 1 &&
-      echo 'All LabBank S3 topics created.'
+    entrypoint: []
+    command:
+      - /bin/bash
+      - -c
+      - |
+        set -e
+        # Wait up to 60s for kafka to actually accept connections, even after the
+        # healthcheck reports healthy (KRaft recovery can lag the listener).
+        for i in $$(seq 1 60); do
+          if kafka-topics --bootstrap-server kafka:29092 --list >/dev/null 2>&1; then
+            break
+          fi
+          echo "waiting for kafka broker... attempt $$i/60"
+          sleep 1
+        done
+
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s5.command.transfer.external.v3 --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s5.command.transfer.inquire.v3 --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s5.s3.event.operation-result.v3 --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s4.command.risk.assess.v1 --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s4.s3.event.operation-result.v1 --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s1.command.authorization.check.v2 --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s1.s3.event.operation-result.v2 --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.funds.hold.v3 --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.transfer.internal.v3 --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.funds.capture.v3 --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.funds.release.v3 --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.transfer.reverse.v3 --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s3.s2.command.operation.inquire.v3 --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic lab.s2.s3.event.operation-result.v3 --partitions 3 --replication-factor 1
+
+        echo 'All LabBank S3 topics created.'
     restart: "no"
 
   app:

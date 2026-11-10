@@ -81,10 +81,21 @@
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!--
+            jackson-dataformat-yaml is required at RUNTIME by springdoc-openapi
+            (Swagger UI) for parsing OpenAPI YAML specs. Without it on the
+            runtime classpath, the application fails to start with:
+                java.lang.NoClassDefFoundError:
+                  com/fasterxml/jackson/dataformat/yaml/YAMLFactory
+              at org.springdoc.core.configuration.SpringDocConfiguration
+                  .springdocObjectMapperProvider(...)
+            It is also used by the contract tests. Both scopes are satisfied
+            by leaving the default (compile) scope, which includes the artifact
+            in the packaged JAR.
+        -->
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.networknt</groupId>
