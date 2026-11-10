@@ -144,6 +144,28 @@ paths:
                 $ref: '#/components/schemas/TransferEventPage'
         '404':
           $ref: '#/components/responses/NotFound'
+  /transfers/{id}/status:
+    get:
+      operationId: getTransferStatus
+      summary: Minimal status snapshot for a neighbor team (Provider side, Section 7)
+      description: >-
+        Read-only endpoint that returns the minimum fields a neighbor team
+        needs to query the state of a transfer. Available on `main` and after
+        `docker compose up --build -d` on port 8083. Stable seed UUIDs are
+        documented in README.md "For the neighbor team".
+      tags: [neighbor]
+      parameters:
+        - $ref: '#/components/parameters/TransferId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Minimal status snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferStatusSnapshot'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   parameters:
     TransferId:
@@ -395,6 +417,35 @@ components:
             - string
             - 'null'
       required: [data]
+    TransferStatusSnapshot:
+      type: object
+      additionalProperties: false
+      description: >-
+        Minimal status snapshot returned by GET /transfers/{id}/status to a
+        neighbor team. Does not expose customer account numbers.
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/TransferStatus'
+        is_internal:
+          type: boolean
+        amount:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          const: IRR
+        external_reference:
+          type:
+            - string
+            - 'null'
+        updated_at:
+          type: string
+          format: date-time
+          pattern: Z$
+      required: [id, status, is_internal, amount, currency, updated_at]
     Problem:
       type: object
       additionalProperties: false

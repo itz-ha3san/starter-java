@@ -38,6 +38,24 @@ cp env.example .env
 docker compose up -d --build
 ```
 
+> **نکته‌ی شبکه (ایران):** اگر هنگام `docker compose up --build` خطای
+> `Remote host terminated the handshake` یا `SSL peer shut down incorrectly`
+> هنگام دانلود از `repo.maven.apache.org` گرفتید، کافی است `Dockerfile`
+> پروژه را همان‌طور که هست استفاده کنید. این پروژه از mirrorهای داخلی
+> قابل‌دسترس از ایران استفاده می‌کند:
+>
+> - **Maven** (Backend): فایل [`.mvn-settings.xml`](.mvn-settings.xml) با
+>   سه mirror: Aliyun → Huawei Cloud → Tencent Cloud.
+> - **npm** (Frontend): فایل [`frontend/.npmrc`](frontend/.npmrc) با mirror
+>   `https://registry.npmmirror.com` (تابعه‌ی علی‌بابا).
+> - **Docker images**: برای pull کردن imageهای رسمی (postgres, kafka, node,
+>   nginx, ...) باید `registry-mirrors` را در Docker Desktop اضافه کنید.
+>   راهنمای کامل در [`MIRRORS.md`](MIRRORS.md).
+>
+> هیچ کار اضافه‌ای برای Maven و npm نیاز نیست؛ فقط برای Docker images اگر
+> pull شکست می‌خورد، `MIRRORS.md` را بخوانید.
+
+
 سپس:
 
 ```bash
@@ -102,6 +120,100 @@ npx @redocly/cli lint openapi/Payment.yaml
 |-----|---------|--------------------------------|
 | Provider | S3↔S5 | `POST /settlement-callbacks` → `lab.s3.s5.command.transfer.external.v3` |
 | Consumer | S4→S3 | `POST /assessments` → `lab.s3.s4.command.risk.assess.v1` |
+
+## برای تیم همسایه (For the neighbor team — Provider side, Section 7)
+
+> این بخش برای تیم‌های همسایه‌ای است که می‌خواهند وضعیت یک انتقال را از S3
+> بخوانند. این Endpoint فقط‌خواندنی، REST و بدون احراز هویت داخلی است و در
+> شاخه `main` مرج شده. بعد از `docker compose up --build -d` روی پورت 8083
+> در دسترس است.
+>
+> This section is for neighbor teams that need to query the status of a
+> transfer from S3. The endpoint is read-only, REST, available on `main`, and
+> reachable on port **8083** after `docker compose up --build -d`.
+
+### Endpoint
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/transfers/{id}/status` | Returns a minimal status snapshot of one transfer |
+
+### Request
+
+- Path parameter `id` — UUID of the transfer (one of the seed identifiers below).
+- No headers required. `X-Correlation-ID` is optional and propagated to logs.
+
+### Responses
+
+- `200 OK` — body:
+
+  ```json
+  {
+    "id": "0192a7e4-6b1d-7c3e-9a41-2f5d8e0b7c11",
+    "status": "SETTLED",
+    "is_internal": true,
+    "amount": 2500000,
+    "currency": "IRR",
+    "external_reference": null,
+    "updated_at": "2026-11-01T08:00:05Z"
+  }
+  ```
+
+- `404 NOT_FOUND` — `application/problem+json`:
+
+  ```json
+  {
+    "type": "https://errors.labbank.example/problem/not_found",
+    "title": "Resource not found",
+    "status": 404,
+    "code": "NOT_FOUND",
+    "detail": "Transfer not found: <uuid>",
+    "correlation_id": "<uuid>"
+  }
+  ```
+
+### Seed identifiers
+
+`docker compose up --build -d` automatically applies the Flyway migration
+`V2__seed_neighbor_data.sql`, so the following deterministic UUIDs are always
+present and can be hard-coded in the neighbor team's tests:
+
+| UUID | Status | Notes |
+|------|--------|-------|
+| `0192a7e4-6b1d-7c3e-9a41-2f5d8e0b7c11` | `SETTLED` | internal transfer, happy path |
+| `0192a7e4-6b1d-7c3e-9a41-2f5d8e0b7c12` | `SETTLED` | external transfer with `external_reference=S5-DEMO-REFERENCE-001` |
+| `0192a7e4-6b1d-7c3e-9a41-2f5d8e0b7c13` | `RISK_REJECTED` | rejected by S4 |
+| `0192a7e4-6b1d-7c3e-9a41-2f5d8e0b7c14` | `RISK_CHECKING` | pending transfer |
+
+### Example calls
+
+```bash
+# Success
+curl -sS http://localhost:8083/api/v1/transfers/0192a7e4-6b1d-7c3e-9a41-2f5d8e0b7c11/status
+
+# Error: unknown id → 404 problem+json
+curl -sS -i http://localhost:8083/api/v1/transfers/00000000-0000-4000-8000-000000000000/status
+```
+
+### Provider-side API tests (committed to `main`)
+
+Class: `edu.softwarelab.starter.api.NeighborTransferStatusControllerMvcTest`
+
+| Test name | Path | Expected |
+|-----------|------|----------|
+| `getTransferStatusReturns200WithMinimalSnapshotForSeededTransfer` (success) | `GET /api/v1/transfers/{id}/status` | `200 OK` with `{id, status, is_internal, amount, currency, external_reference, updated_at}` |
+| `getTransferStatusReturns404ProblemForUnknownId` (error) | `GET /api/v1/transfers/{id}/status` | `404 NOT_FOUND` with `application/problem+json` and `code=NOT_FOUND` |
+
+Run them with:
+
+```bash
+mvn -Dtest=NeighborTransferStatusControllerMvcTest test
+```
+
+### OpenAPI
+
+The endpoint is also described in [`openapi/Payment.yaml`](openapi/Payment.yaml)
+under `GET /transfers/{id}/status`.
 
 ## تست‌ها
 

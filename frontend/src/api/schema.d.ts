@@ -92,6 +92,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transfers/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Minimal status snapshot for a neighbor team (Provider side, Section 7)
+         * @description Read-only endpoint that returns the minimum fields a neighbor team needs to query the state of a transfer. Available on `main` and after `docker compose up --build -d` on port 8083. Stable seed UUIDs are documented in README.md "For the neighbor team".
+         */
+        get: operations["getTransferStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -142,6 +162,9 @@ export interface components {
             status: components["schemas"]["TransferStatus"];
             is_internal: boolean;
             description?: string | null;
+            idempotency_key?: string;
+            /** Format: uuid */
+            correlation_id?: string;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -165,12 +188,31 @@ export interface components {
             data: components["schemas"]["TransferEvent"][];
             next_cursor?: string | null;
         };
+        /** @description Minimal status snapshot returned by GET /transfers/{id}/status to a neighbor team. Does not expose customer account numbers. */
+        TransferStatusSnapshot: {
+            /** Format: uuid */
+            id: string;
+            status: components["schemas"]["TransferStatus"];
+            is_internal: boolean;
+            /** Format: int64 */
+            amount: number;
+            /** @constant */
+            currency: "IRR";
+            external_reference?: string | null;
+            /** Format: date-time */
+            updated_at: string;
+        };
         Problem: {
             /**
              * Format: uri
              * @default https://errors.labbank.example/problem
              */
             type: string;
+            /**
+             * Format: uri-reference
+             * @description Request path associated with this problem.
+             */
+            instance?: string;
             title: string;
             status: number;
             /** @enum {string} */
@@ -381,6 +423,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TransferEventPage"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTransferStatus: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Propagated correlation ID. If absent the server generates one and echoes it in the response header and every log line. */
+                "X-Correlation-ID"?: components["parameters"]["CorrelationId"];
+            };
+            path: {
+                /** @description UUID of the transfer. */
+                id: components["parameters"]["TransferId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Minimal status snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferStatusSnapshot"];
                 };
             };
             404: components["responses"]["NotFound"];

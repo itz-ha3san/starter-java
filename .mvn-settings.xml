@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Maven settings.xml for Docker builds (and local builds) — Iran-friendly.
+
+  Reason: Maven Central (https://repo.maven.apache.org/maven2) is unreachable
+  from inside Iran with an SSL handshake error
+  ("Remote host terminated the handshake" / "SSL peer shut down incorrectly").
+
+  Solution: route all artifact and plugin resolution through mirrors that are
+  reachable from Iran. Maven tries mirrors in declaration order; if the first
+  fails to answer, the next is used automatically.
+
+  Mirrors configured (in order):
+    1. Aliyun public mirror (China, fast from Iran, mirrors central 1:1).
+    2. Huawei Cloud (China, also reachable from Iran).
+
+  This file is copied into the Docker build image as /root/.m2/settings.xml
+  by the project Dockerfile. Locally, you can also use it with:
+      mvn -s .mvn-settings.xml package
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0
+                              https://maven.apache.org/xsd/settings-1.2.0.xsd">
+
+  <mirrors>
+    <!-- Aliyun public mirror: mirrors central, fast and reliable from Iran. -->
+    <mirror>
+      <id>aliyun-public</id>
+      <mirrorOf>central</mirrorOf>
+      <name>Aliyun Public Mirror</name>
+      <url>https://maven.aliyun.com/repository/public</url>
+    </mirror>
+
+    <!-- Huawei Cloud mirror: secondary, used if Aliyun is unreachable. -->
+    <mirror>
+      <id>huawei-cloud</id>
+      <mirrorOf>central</mirrorOf>
+      <name>Huawei Cloud Maven Mirror</name>
+      <url>https://mirrors.huaweicloud.com/repository/maven/public</url>
+    </mirror>
+
+    <!-- Tencent Cloud mirror: tertiary fallback. -->
+    <mirror>
+      <id>tencent-cloud</id>
+      <mirrorOf>central</mirrorOf>
+      <name>Tencent Cloud Maven Mirror</name>
+      <url>https://mirrors.cloud.tencent.com/nexus/repository/maven-public</url>
+    </mirror>
+  </mirrors>
+
+  <profiles>
+    <profile>
+      <id>iran-mirrors</id>
+      <repositories>
+        <repository>
+          <id>aliyun-public</id>
+          <url>https://maven.aliyun.com/repository/public</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+        <repository>
+          <id>huawei-cloud</id>
+          <url>https://mirrors.huaweicloud.com/repository/maven/public</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>aliyun-public-plugins</id>
+          <url>https://maven.aliyun.com/repository/public</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </pluginRepository>
+        <pluginRepository>
+          <id>huawei-cloud-plugins</id>
+          <url>https://mirrors.huaweicloud.com/repository/maven/public</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+
+  <activeProfiles>
+    <activeProfile>iran-mirrors</activeProfile>
+  </activeProfiles>
+</settings>
