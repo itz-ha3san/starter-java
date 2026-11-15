@@ -107,7 +107,7 @@ idempotency را در سطح پیام پیاده کرد؛ تکرار یک پیا
 
 - **ارتباط بین‌سرویسی** با AsyncAPI 3.0 در فایل‌های `asyncapi/asyncS*.yaml` مستند
   می‌شود و با `npx @asyncapi/cli validate` اعتبارسنجی می‌گردد.
-- **API رو‌به‌فرانت‌اند** همچنان با OpenAPI 3.1 در `openapi/payment.yaml` مستند
+- **API رو‌به‌فرانت‌اند** همچنان با OpenAPI 3.1 در `../../openapi/Payment.yaml` مستند
   می‌ماند، زیرا فرانت‌اند از طریق REST با S3 صحبت می‌کند (الگوی استاندارد:
   frontend → REST → backend, backend ↔ backend → Kafka).
 - تمام استانداردهای فنی مشترک (GEN-03 تا GEN-13) همچنان رعایت می‌شوند؛ فقط لایه‌ی

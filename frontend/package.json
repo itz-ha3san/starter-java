@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "gen:api": "openapi-typescript ../openapi/payment.yaml -o src/api/schema.d.ts",
+    "gen:api": "openapi-typescript ../openapi/Payment.yaml -o src/api/schema.d.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",

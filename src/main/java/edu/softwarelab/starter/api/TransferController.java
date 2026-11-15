@@ -34,7 +34,7 @@ import edu.softwarelab.starter.service.TransferService;
 /**
  * REST entry points for the S3 Payment service.
  *
- * <p>Endpoints (per openapi/payment.yaml):
+ * <p>Endpoints (per openapi/Payment.yaml):
  * <ul>
  *   <li>{@code POST /api/v1/transfers} — create a transfer, kick off the saga.</li>
  *   <li>{@code GET  /api/v1/transfers/{id}} — fetch a transfer by id.</li>

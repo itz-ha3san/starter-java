@@ -393,7 +393,7 @@ curl http://localhost:8083/api/v1/transfers/${TXN_ID} | jq .status
 
 ### "Failed to fetch" در Swagger UI
 
-- مطمئن شوید `servers.url` در `openapi/payment.yaml` با آدرس سرویس هم‌خوانی دارد
+- مطمئن شوید `servers.url` در `../openapi/Payment.yaml` با آدرس سرویس هم‌خوانی دارد
 - اگر Swagger UI از docker container باز می‌شود، آدرس باید `http://localhost:8083/api/v1` باشد
 - CORS: اگر از مرورگر استفاده می‌کنید، مطمئن شوید `CorrelationIdFilter` هدر CORS اضافه می‌کند
 
